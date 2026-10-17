@@ -63,7 +63,6 @@ function isClassMatch(classA, classB) {
 // INITIALIZATION
 window.addEventListener('DOMContentLoaded', () => {
   loadDataFromLocalStorage();
-  if (studentsData.length === 0) loadSampleData(false);
   updateAuthUI();
   updateAllViews();
 });
@@ -524,28 +523,13 @@ function handleExcelUpload(event) {
   };
   reader.readAsArrayBuffer(file);
 }
+
 function loadSampleData(notify = true) {
-  studentsData = [
-    { id: 's1', nama: 'Aditya Pratama', kelas: 'Kelas I' },
-    { id: 's2', nama: 'Anisa Rahma', kelas: 'Kelas I' },
-    { id: 's3', nama: 'Budi Santoso', kelas: 'Kelas II' },
-    { id: 's4', nama: 'Citra Dewi', kelas: 'Kelas III' },
-    { id: 's5', nama: 'Dion Permana', kelas: 'Kelas IV' },
-    { id: 's6', nama: 'Eka Lestari', kelas: 'Kelas IV' },
-    { id: 's7', nama: 'Faris Hidayat', kelas: 'Kelas V' },
-    { id: 's8', nama: 'Gita Savitri', kelas: 'Kelas VI' }
-  ];
-
-  const today = getTodayDateStr();
-  surveyResponses = [
-    { id: 'r1', studentId: 's1', nama: 'Aditya Pratama', kelas: 'Kelas I', score: 5, emojiText: 'Sangat Senang', dateStr: today, timestamp: `${today} 08:30` },
-    { id: 'r2', studentId: 's2', nama: 'Anisa Rahma', kelas: 'Kelas I', score: 4, emojiText: 'Senang', dateStr: today, timestamp: `${today} 08:31` },
-    { id: 'r3', studentId: 's5', nama: 'Dion Permana', kelas: 'Kelas IV', score: 5, emojiText: 'Sangat Senang', dateStr: today, timestamp: `${today} 09:15` }
-  ];
-
+  studentsData = [];
+  surveyResponses = [];
   saveDataToLocalStorage();
   updateAllViews();
-  if (notify) showToast('Data contoh SD Negeri 1 Tiga dimuat!');
+  if (notify) showToast('Data di-reset menjadi kosong.');
 }
 
 function clearAllData() {
