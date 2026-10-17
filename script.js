@@ -5,25 +5,7 @@ let usersData = [];
 let currentUser = null; // null = Guest / Mode Siswa
 
 // GOOGLE APPS SCRIPT WEB APP URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec';
-
-// FUNGSI PEMBERSIH FORMAT TANGGAL
-function cleanDateStr(dStr) {
-  if (!dStr) return '';
-  const str = String(dStr).trim();
-  
-  // Jika formatnya panjang dari Google Sheets (mengandung GMT/Waktu)
-  if (str.includes('GMT') || str.includes('00:00:00') || str.includes('T')) {
-    const d = new Date(str);
-    if (!isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`; // Hasil: 2026-10-17
-    }
-  }
-  return str;
-}
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
 // Siswa Session state
 let activeClass = '';
@@ -37,6 +19,23 @@ const emojiIconMap = {
   'Kurang Senang': '🙁',
   'Sedih': '😢'
 };
+
+// FUNGSI PEMBERSIH FORMAT TANGGAL
+function cleanDateStr(dStr) {
+  if (!dStr) return '';
+  const str = String(dStr).trim();
+  
+  if (str.includes('GMT') || str.includes('00:00:00') || str.includes('T')) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+  return str;
+}
 
 function getTodayDateStr() {
   const now = new Date();
@@ -99,7 +98,7 @@ function loadDataFromLocalStorage() {
   if (savedUsers) {
     usersData = JSON.parse(savedUsers);
   } else {
-    // HANYA AKUN ADMIN UTAMA DEFAULT
+    // Hanya Admin Utama Default
     usersData = [
       { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
     ];
@@ -226,7 +225,7 @@ function switchTab(tabName) {
   }
 }
 
-// ADMIN KELOLA SISWA (TAMBAH MANUAL, EDIT, & HAPUS)
+// ADMIN KELOLA SISWA (TAMBAH MANUAL, EDIT, & HAPUS SYNC TO GOOGLE SHEETS)
 function handleAddSingleStudent(e) {
   e.preventDefault();
   if (!currentUser || currentUser.role !== 'admin') {
@@ -606,12 +605,22 @@ function clearAllData() {
     showToast('⛔ Hanya Admin yang dapat menghapus seluruh data.');
     return;
   }
-  if (confirm('Hapus seluruh data siswa dan riwayat survei di browser?')) {
+  if (confirm('Hapus seluruh data siswa dan riwayat survei di web dan Google Sheets?')) {
     studentsData = [];
     surveyResponses = [];
     saveDataToLocalStorage();
     updateAllViews();
-    showToast('Data dibersihkan.');
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESET_ALL_DATA' })
+      }).catch(err => console.error('Gagal reset data di Sheets:', err));
+    }
+
+    showToast('Seluruh data dibersihkan.');
   }
 }
 
@@ -676,13 +685,7 @@ function populateClassSelects() {
 function populateDateSelects() {
   const dashDateFilter = document.getElementById('dashboardDateFilter');
   dashDateFilter.innerHTML = '<option value="ALL">📅 Semua Tanggal</option>';
-  
-  // Bersihkan semua tanggal yang masuk agar tidak ada format GMT panjang
-  const dates = [...new Set(surveyResponses.map(r => cleanDateStr(r.dateStr)))]
-    .filter(Boolean)
-    .sort()
-    .reverse();
-    
+  const dates = [...new Set(surveyResponses.map(r => cleanDateStr(r.dateStr)))].filter(Boolean).sort().reverse();
   dates.forEach(dStr => dashDateFilter.appendChild(new Option(`🗓️ ${dStr}`, dStr)));
 }
 
@@ -875,7 +878,7 @@ function renderDashboard() {
     filteredResponses = filteredResponses.filter(r => isClassMatch(r.kelas, selectedClass));
   }
   if (selectedDate !== 'ALL') {
-    filteredResponses = filteredResponses.filter(r => r.dateStr === selectedDate);
+    filteredResponses = filteredResponses.filter(r => cleanDateStr(r.dateStr) === selectedDate);
   }
 
   const filteredStudents = selectedClass === 'ALL' 
@@ -886,7 +889,7 @@ function renderDashboard() {
   document.getElementById('statTotalResponses').textContent = totalResp;
 
   const targetDate = selectedDate === 'ALL' ? getTodayDateStr() : selectedDate;
-  const votedStudentIds = new Set(surveyResponses.filter(r => r.dateStr === targetDate).map(r => r.studentId));
+  const votedStudentIds = new Set(surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate).map(r => r.studentId));
   const pending = filteredStudents.filter(s => !votedStudentIds.has(s.id)).length;
   document.getElementById('statPendingStudents').textContent = pending > 0 ? pending : 0;
 
@@ -931,7 +934,7 @@ function renderDashboard() {
     const isAdmin = currentUser && currentUser.role === 'admin';
     document.getElementById('responseTableBody').innerHTML = filteredResponses.slice().reverse().map(r => `
       <tr class="hover:bg-slate-50">
-        <td class="p-2.5 sm:p-3 text-[11px] sm:text-xs text-slate-500 font-mono">${r.timestamp || r.dateStr}</td>
+        <td class="p-2.5 sm:p-3 text-[11px] sm:text-xs text-slate-500 font-mono">${r.timestamp || cleanDateStr(r.dateStr)}</td>
         <td class="p-2.5 sm:p-3 font-semibold text-slate-800">${r.nama}</td>
         <td class="p-2.5 sm:p-3"><span class="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-lg text-xs font-bold">${r.kelas}</span></td>
         <td class="p-2.5 sm:p-3 font-bold">${emojiIconMap[r.emojiText] || ''} ${r.emojiText}</td>
@@ -952,7 +955,7 @@ function renderDashboard() {
 
 function renderDailySummaryTable(selectedClassFilter) {
   const dailyTbody = document.getElementById('dailySummaryTableBody');
-  const dates = [...new Set(surveyResponses.map(r => r.dateStr))].filter(Boolean).sort().reverse();
+  const dates = [...new Set(surveyResponses.map(r => cleanDateStr(r.dateStr)))].filter(Boolean).sort().reverse();
 
   if (dates.length === 0) {
     dailyTbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada riwayat harian.</td></tr>`;
@@ -960,7 +963,7 @@ function renderDailySummaryTable(selectedClassFilter) {
   }
 
   dailyTbody.innerHTML = dates.map(dStr => {
-    let dayResponses = surveyResponses.filter(r => r.dateStr === dStr);
+    let dayResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === dStr);
     if (selectedClassFilter !== 'ALL') {
       dayResponses = dayResponses.filter(r => isClassMatch(r.kelas, selectedClassFilter));
     }
@@ -1008,7 +1011,7 @@ function renderClassSummaryTable(selectedDateFilter) {
   summaryTbody.innerHTML = classes.map(cls => {
     let clsResponses = surveyResponses.filter(r => isClassMatch(r.kelas, cls));
     if (selectedDateFilter !== 'ALL') {
-      clsResponses = clsResponses.filter(r => r.dateStr === selectedDateFilter);
+      clsResponses = clsResponses.filter(r => cleanDateStr(r.dateStr) === selectedDateFilter);
     }
 
     const count = clsResponses.length;
@@ -1060,7 +1063,7 @@ function exportResponsesToExcel() {
 
   let filtered = surveyResponses;
   if (selectedClass !== 'ALL') filtered = filtered.filter(r => isClassMatch(r.kelas, selectedClass));
-  if (selectedDate !== 'ALL') filtered = filtered.filter(r => r.dateStr === selectedDate);
+  if (selectedDate !== 'ALL') filtered = filtered.filter(r => cleanDateStr(r.dateStr) === selectedDate);
 
   if (filtered.length === 0) {
     showToast('⚠️ Belum ada data respon untuk diunduh.');
@@ -1068,7 +1071,7 @@ function exportResponsesToExcel() {
   }
 
   const exportData = filtered.map(r => ({
-    "Tanggal": r.dateStr || '-',
+    "Tanggal": cleanDateStr(r.dateStr) || '-',
     "Waktu Detail": r.timestamp || '-',
     "Nama Siswa": r.nama,
     "Kelas": r.kelas,
@@ -1104,19 +1107,17 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Sync Respon & Rapikan Tanggal Otomatis
+    // 1. Sync Respon & Rapikan Tanggal
     if (Array.isArray(cloudData.responses)) {
       surveyResponses = cloudData.responses.map(r => {
-        r.dateStr = cleanDateStr(r.dateStr); // Otomatis rapikan tanggal GMT
+        r.dateStr = cleanDateStr(r.dateStr);
         return r;
       });
     }
-    
     // 2. Sync Siswa
-    if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
+    if (Array.isArray(cloudData.students)) {
       studentsData = cloudData.students;
     }
-    
     // 3. Sync User
     if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
       usersData = cloudData.users;
