@@ -4,8 +4,8 @@ let surveyResponses = [];
 let usersData = [];
 let currentUser = null; // null = Guest / Mode Siswa
 
-// OPTIONAL: Google Apps Script Web App URL (Kosongkan jika menggunakan LocalStorage)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfRZA_JHapuK9GnBnpp50cUIQzaxxHB7hSdbVrvhiEMuRW4wxLzVWodS9znLr2vLazbA/exec'; 
+// GOOGLE APPS SCRIPT WEB APP URL
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
 // Siswa Session state
 let activeClass = '';
@@ -65,6 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
   loadDataFromLocalStorage();
   updateAuthUI();
   updateAllViews();
+  syncDataFromGoogleSheets();
 });
 
 // LOCAL STORAGE
@@ -80,14 +81,9 @@ function loadDataFromLocalStorage() {
   if (savedUsers) {
     usersData = JSON.parse(savedUsers);
   } else {
+    // HANYA AKUN ADMIN UTAMA DEFAULT
     usersData = [
-      { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' },
-      { id: 'u1', nama: 'Guru Kelas I', username: 'guru1', password: 'guru123', role: 'guru', assignedClass: 'Kelas I' },
-      { id: 'u2', nama: 'Guru Kelas II', username: 'guru2', password: 'guru123', role: 'guru', assignedClass: 'Kelas II' },
-      { id: 'u3', nama: 'Guru Kelas III', username: 'guru3', password: 'guru123', role: 'guru', assignedClass: 'Kelas III' },
-      { id: 'u4', nama: 'Guru Kelas IV', username: 'guru4', password: 'guru123', role: 'guru', assignedClass: 'Kelas IV' },
-      { id: 'u5', nama: 'Guru Kelas V', username: 'guru5', password: 'guru123', role: 'guru', assignedClass: 'Kelas V' },
-      { id: 'u6', nama: 'Guru Kelas VI', username: 'guru6', password: 'guru123', role: 'guru', assignedClass: 'Kelas VI' }
+      { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
     ];
     saveUsersToLocalStorage();
   }
@@ -222,6 +218,7 @@ function handleAddSingleStudent(e) {
 
   const namaInput = document.getElementById('manualNamaSiswa');
   const kelasInput = document.getElementById('manualKelasSiswa');
+
   const nama = namaInput.value.trim();
   const kelas = kelasInput.value;
 
@@ -234,19 +231,17 @@ function handleAddSingleStudent(e) {
     kelas: kelas
   };
 
-  // Simpan di LocalStorage Browser
   studentsData.push({ id: newStudentPayload.id, nama: newStudentPayload.nama, kelas: newStudentPayload.kelas });
   saveDataToLocalStorage();
   updateAllViews();
 
-  // Kirim ke Google Sheets
   if (GOOGLE_SCRIPT_URL) {
     fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newStudentPayload)
-    }).catch(err => console.error('Gagal kirim data siswa ke Google Sheets:', err));
+    }).catch(err => console.error('Gagal kirim siswa ke Sheets:', err));
   }
 
   namaInput.value = '';
@@ -281,19 +276,22 @@ function handleSaveEditStudent(e) {
 
   const student = studentsData.find(s => s.id === id);
   if (student) {
-    surveyResponses.forEach(r => {
-      if (r.studentId === id) {
-        r.nama = newNama;
-        r.kelas = newKelas;
-      }
-    });
-
     student.nama = newNama;
     student.kelas = newKelas;
 
     saveDataToLocalStorage();
     updateAllViews();
     closeEditStudentModal();
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'EDIT_STUDENT', id: id, nama: newNama, kelas: newKelas })
+      }).catch(err => console.error('Gagal edit siswa di Sheets:', err));
+    }
+
     showToast(`✅ Data siswa "${newNama}" berhasil diperbarui!`, '✏️');
   }
 }
@@ -311,11 +309,21 @@ function deleteSingleStudent(studentId) {
     studentsData = studentsData.filter(s => s.id !== studentId);
     saveDataToLocalStorage();
     updateAllViews();
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DELETE_STUDENT', id: studentId })
+      }).catch(err => console.error('Gagal hapus siswa di Sheets:', err));
+    }
+
     showToast(`🗑️ Data ${studentName} berhasil dihapus.`, '⚠️');
   }
 }
 
-// ADMIN USER MANAGEMENT (TAMBAH, EDIT, & HAPUS AKUN)
+// ADMIN USER MANAGEMENT (TAMBAH, EDIT, & HAPUS AKUN SYNC TO GOOGLE SHEETS)
 function toggleClassAssignmentInput() {
   const role = document.getElementById('newRole').value;
   const group = document.getElementById('classAssignmentGroup');
@@ -349,13 +357,29 @@ function handleCreateUser(e) {
     return;
   }
 
-  usersData.push({
+  const newUserPayload = {
+    action: 'ADD_USER',
     id: 'u_' + Date.now(),
-    nama, username, password, role, assignedClass
-  });
+    nama: nama,
+    username: username,
+    password: password,
+    role: role,
+    assignedClass: assignedClass
+  };
 
+  usersData.push({ id: newUserPayload.id, nama, username, password, role, assignedClass });
   saveUsersToLocalStorage();
   renderUsersTable();
+
+  if (GOOGLE_SCRIPT_URL) {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUserPayload)
+    }).catch(err => console.error('Gagal simpan user ke Sheets:', err));
+  }
+
   e.target.reset();
   showToast('✅ Akun baru berhasil ditambahkan!');
 }
@@ -415,6 +439,24 @@ function handleSaveEditUser(e) {
     saveUsersToLocalStorage();
     renderUsersTable();
     closeEditUserModal();
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'EDIT_USER',
+          id: id,
+          nama: newNama,
+          username: newUsername,
+          password: newPassword,
+          role: newRole,
+          assignedClass: newAssignedClass
+        })
+      }).catch(err => console.error('Gagal edit user di Sheets:', err));
+    }
+
     showToast(`✅ Akun "${newNama}" berhasil diperbarui!`, '✏️');
   }
 }
@@ -424,6 +466,16 @@ function deleteUser(id) {
     usersData = usersData.filter(u => u.id !== id);
     saveUsersToLocalStorage();
     renderUsersTable();
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DELETE_USER', id: id })
+      }).catch(err => console.error('Gagal hapus user di Sheets:', err));
+    }
+
     showToast('Akun telah dihapus.');
   }
 }
@@ -502,7 +554,6 @@ function handleExcelUpload(event) {
         saveDataToLocalStorage();
         updateAllViews();
 
-        // === OTOMATIS KIRIM DATA EXCEL KE GOOGLE SHEETS ===
         if (GOOGLE_SCRIPT_URL) {
           fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
@@ -529,7 +580,7 @@ function loadSampleData(notify = true) {
   surveyResponses = [];
   saveDataToLocalStorage();
   updateAllViews();
-  if (notify) showToast('Data di-reset menjadi kosong.');
+  if (notify) showToast('Data dibersihkan.');
 }
 
 function clearAllData() {
@@ -537,7 +588,7 @@ function clearAllData() {
     showToast('⛔ Hanya Admin yang dapat menghapus seluruh data.');
     return;
   }
-  if (confirm('Hapus seluruh data siswa dan riwayat survei?')) {
+  if (confirm('Hapus seluruh data siswa dan riwayat survei di browser?')) {
     studentsData = [];
     surveyResponses = [];
     saveDataToLocalStorage();
@@ -557,30 +608,17 @@ function deleteSingleResponse(respId) {
     saveDataToLocalStorage();
     renderDashboard();
     renderStudentTable();
+
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DELETE_RESPONSE', id: respId })
+      }).catch(err => console.error('Gagal hapus respon di Sheets:', err));
+    }
+
     showToast('🗑️ Respon siswa berhasil dihapus.');
-  }
-}
-
-function deleteAllResponsesForFilter() {
-  if (!currentUser || currentUser.role !== 'admin') {
-    showToast('⛔ Hanya Admin yang dapat menghapus respon.');
-    return;
-  }
-
-  const selectedClass = document.getElementById('dashboardClassFilter').value;
-  const selectedDate = document.getElementById('dashboardDateFilter').value;
-
-  if (confirm(`Hapus seluruh respon untuk filter (${selectedDate} - ${selectedClass})?`)) {
-    surveyResponses = surveyResponses.filter(r => {
-      const matchClass = selectedClass === 'ALL' || isClassMatch(r.kelas, selectedClass);
-      const matchDate = selectedDate === 'ALL' || r.dateStr === selectedDate;
-      return !(matchClass && matchDate);
-    });
-
-    saveDataToLocalStorage();
-    renderDashboard();
-    renderStudentTable();
-    showToast('🗑️ Seluruh respon terfilter berhasil dihapus.');
   }
 }
 
@@ -779,7 +817,6 @@ function renderDashboard() {
   let selectedClass = classFilterEl.value;
   const selectedDate = dateFilterEl.value;
 
-  // ROLE RESTRICTION FOR GURU
   if (currentUser && currentUser.role === 'guru') {
     selectedClass = currentUser.assignedClass;
     
@@ -808,7 +845,6 @@ function renderDashboard() {
     }
   }
 
-  // Filter Responses based on Role and Filter Selectors
   let filteredResponses = surveyResponses;
 
   if (selectedClass !== 'ALL') {
@@ -818,7 +854,6 @@ function renderDashboard() {
     filteredResponses = filteredResponses.filter(r => r.dateStr === selectedDate);
   }
 
-  // Filter Students
   const filteredStudents = selectedClass === 'ALL' 
     ? studentsData 
     : studentsData.filter(s => isClassMatch(s.kelas, selectedClass));
@@ -869,7 +904,6 @@ function renderDashboard() {
       `;
     }).join('');
 
-    // Response History Rows
     const isAdmin = currentUser && currentUser.role === 'admin';
     document.getElementById('responseTableBody').innerHTML = filteredResponses.slice().reverse().map(r => `
       <tr class="hover:bg-slate-50">
@@ -992,7 +1026,6 @@ function downloadExcelTemplate() {
   XLSX.writeFile(wb, "Template_Siswa_SDN_1_Tiga.xlsx");
 }
 
-// EXPORT RESPONSES TO EXCEL
 function exportResponsesToExcel() {
   let selectedClass = document.getElementById('dashboardClassFilter').value;
   const selectedDate = document.getElementById('dashboardDateFilter').value;
@@ -1039,20 +1072,33 @@ function showToast(message, icon = '✨') {
   }, 2500);
 }
 
-// AMBIL DATA TERBARU DARI GOOGLE SHEETS (JIKA URL DIISI)
+// SINKRONISASI 2 ARAH DARI GOOGLE SHEETS
 async function syncDataFromGoogleSheets() {
   if (!GOOGLE_SCRIPT_URL) return;
   
   try {
     const res = await fetch(GOOGLE_SCRIPT_URL);
-    const dataCloud = await res.json();
+    const cloudData = await res.json();
     
-    if (Array.isArray(dataCloud) && dataCloud.length > 0) {
-      surveyResponses = dataCloud;
-      saveDataToLocalStorage();
-      renderDashboard();
+    // 1. Sync Respon
+    if (Array.isArray(cloudData.responses)) {
+      surveyResponses = cloudData.responses;
     }
+    // 2. Sync Siswa
+    if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
+      studentsData = cloudData.students;
+    }
+    // 3. Sync User
+    if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
+      usersData = cloudData.users;
+    }
+
+    saveDataToLocalStorage();
+    saveUsersToLocalStorage();
+    updateAllViews();
+    if (currentUser && currentUser.role === 'admin') renderUsersTable();
+
   } catch (err) {
-    console.log('Menggunakan data lokal offline.');
+    console.log('Mode Offline / Menggunakan LocalStorage');
   }
 }
