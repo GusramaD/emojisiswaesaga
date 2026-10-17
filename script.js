@@ -502,6 +502,20 @@ function handleExcelUpload(event) {
         studentsData = newStudents;
         saveDataToLocalStorage();
         updateAllViews();
+
+        // === OTOMATIS KIRIM DATA EXCEL KE GOOGLE SHEETS ===
+        if (GOOGLE_SCRIPT_URL) {
+          fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADD_BULK_STUDENTS',
+              students: newStudents
+            })
+          }).catch(err => console.error('Gagal sync Excel ke Google Sheets:', err));
+        }
+
         showToast(`✅ Berhasil mengunggah ${newStudents.length} data siswa!`, '🎉');
       }
     } catch (err) {
@@ -510,7 +524,6 @@ function handleExcelUpload(event) {
   };
   reader.readAsArrayBuffer(file);
 }
-
 function loadSampleData(notify = true) {
   studentsData = [
     { id: 's1', nama: 'Aditya Pratama', kelas: 'Kelas I' },
