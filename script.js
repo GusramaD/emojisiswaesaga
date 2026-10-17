@@ -1,4 +1,6 @@
-// GLOBAL STATE
+// ==========================================
+// GLOBAL STATE & CONFIGURATION
+// ==========================================
 let studentsData = [];
 let surveyResponses = [];
 let usersData = [];
@@ -7,7 +9,7 @@ let currentUser = null; // null = Guest / Mode Siswa
 // GOOGLE APPS SCRIPT WEB APP URL
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
-// Siswa Session state
+// Siswa Voting Session state
 let activeClass = '';
 let activeClassStudents = [];
 let currentStudentIndex = 0;
@@ -22,7 +24,11 @@ const emojiIconMap = {
   'Sedih': '😢'
 };
 
-// FUNGSI PEMBERSIH FORMAT TANGGAL
+// ==========================================
+// HELPER FUNCTIONS (DATE & CLASS MATCHING)
+// ==========================================
+
+// Clean date format from GMT / Google Sheets Date Object to YYYY-MM-DD
 function cleanDateStr(dStr) {
   if (!dStr) return '';
   const str = String(dStr).trim();
@@ -44,7 +50,7 @@ function getTodayDateStr() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-// SMART GRADE NUMBER EXTRACTOR (1-6)
+// Extract grade number (1-6)
 function getGradeNumber(cls) {
   if (!cls) return '';
   let s = String(cls).toUpperCase().trim();
@@ -62,7 +68,7 @@ function getGradeNumber(cls) {
   return match ? match[0] : '';
 }
 
-// SMART CLASS MATCHING
+// Smart Class Matching
 function isClassMatch(classA, classB) {
   if (!classA || !classB) return true;
   if (classA === 'ALL' || classB === 'ALL') return true;
@@ -79,7 +85,9 @@ function isClassMatch(classA, classB) {
   return cleanA === cleanB;
 }
 
-// INITIALIZATION
+// ==========================================
+// INITIALIZATION & LOCAL STORAGE
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
   loadDataFromLocalStorage();
   updateAuthUI();
@@ -87,7 +95,6 @@ window.addEventListener('DOMContentLoaded', () => {
   syncDataFromGoogleSheets();
 });
 
-// LOCAL STORAGE
 function loadDataFromLocalStorage() {
   const savedStudents = localStorage.getItem('sd1tiga_students');
   const savedResponses = localStorage.getItem('sd1tiga_responses');
@@ -100,6 +107,7 @@ function loadDataFromLocalStorage() {
   if (savedUsers) {
     usersData = JSON.parse(savedUsers);
   } else {
+    // Default Admin User Only
     usersData = [
       { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
     ];
@@ -118,7 +126,9 @@ function saveUsersToLocalStorage() {
   localStorage.setItem('sd1tiga_users', JSON.stringify(usersData));
 }
 
+// ==========================================
 // AUTHENTICATION SYSTEM
+// ==========================================
 function updateAuthUI() {
   const authContainer = document.getElementById('authStatusContainer');
   const navAdminBtn = document.getElementById('navAdminBtn');
@@ -189,7 +199,9 @@ function handleLogout() {
   showToast('Anda telah logout.', '👋');
 }
 
+// ==========================================
 // TAB SWITCHING WITH ROLE GUARDS
+// ==========================================
 function switchTab(tabName) {
   if (tabName === 'dashboard' && !currentUser) {
     showToast('🔒 Silakan Login terlebih dahulu untuk melihat Laporan.');
@@ -226,7 +238,9 @@ function switchTab(tabName) {
   }
 }
 
-// ADMIN KELOLA SISWA (TAMBAH MANUAL, EDIT, & HAPUS SYNC TO GOOGLE SHEETS)
+// ==========================================
+// ADMIN: KELOLA SISWA (TAMBAH, EDIT, HAPUS)
+// ==========================================
 function handleAddSingleStudent(e) {
   e.preventDefault();
   if (!currentUser || currentUser.role !== 'admin') {
@@ -341,7 +355,9 @@ function deleteSingleStudent(studentId) {
   }
 }
 
-// ADMIN USER MANAGEMENT (TAMBAH, EDIT, & HAPUS AKUN SYNC TO GOOGLE SHEETS)
+// ==========================================
+// ADMIN: KELOLA AKUN GURU & ADMIN
+// ==========================================
 function toggleClassAssignmentInput() {
   const role = document.getElementById('newRole').value;
   const group = document.getElementById('classAssignmentGroup');
@@ -526,7 +542,9 @@ function renderUsersTable() {
   `).join('');
 }
 
-// EXCEL PARSER (ADMIN ONLY)
+// ==========================================
+// EXCEL UPLOAD & DATA RESET
+// ==========================================
 function handleExcelUpload(event) {
   if (!currentUser || currentUser.role !== 'admin') {
     showToast('⛔ Hanya Administrator yang dapat mengunggah file data siswa.');
@@ -650,6 +668,9 @@ function deleteSingleResponse(respId) {
   }
 }
 
+// ==========================================
+// VIEW RENDERING & SELECT POPULATION
+// ==========================================
 function updateAllViews() {
   populateClassSelects();
   populateDateSelects();
@@ -690,7 +711,9 @@ function populateDateSelects() {
   dates.forEach(dStr => dashDateFilter.appendChild(new Option(`🗓️ ${dStr}`, dStr)));
 }
 
-// SISWA SESSION
+// ==========================================
+// SISWA VOTING SESSION
+// ==========================================
 function startSiswaSession() {
   const selectedClass = document.getElementById('siswaClassSelect').value;
   if (!selectedClass) return;
@@ -728,7 +751,7 @@ function submitStudentVote(score, emojiText) {
   const todayDateStr = getTodayDateStr();
 
   const dataRespon = {
-    id: 'resp_' + Date.now(),
+    id: 'resp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
     studentId: currentStudent.id,
     nama: currentStudent.nama,
     kelas: currentStudent.kelas,
@@ -738,13 +761,14 @@ function submitStudentVote(score, emojiText) {
     timestamp: new Date().toLocaleString('id-ID')
   };
 
+  // Filter out existing vote from same student on same date
   surveyResponses = surveyResponses.filter(r => {
-    const sameStudent = (r.studentId && r.studentId === currentStudent.id) ||
+    const sameStudent = (r.studentId && String(r.studentId).trim() === String(currentStudent.id).trim()) ||
                         (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
     const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
     return !(sameStudent && sameDate);
   });
-  
+
   surveyResponses.push(dataRespon);
   sessionVotedCount++;
 
@@ -803,7 +827,9 @@ function resetToClassSelect() {
   document.getElementById('siswaClassSelectCard').classList.remove('hidden');
 }
 
-// RENDER STUDENT TABLE
+// ==========================================
+// RENDER TABLES (STUDENTS & DASHBOARD)
+// ==========================================
 function renderStudentTable() {
   const teacherFilterEl = document.getElementById('teacherClassFilter');
   let filter = teacherFilterEl.value;
@@ -827,7 +853,7 @@ function renderStudentTable() {
 
   tbody.innerHTML = filtered.map((s, index) => {
     const hasVotedToday = todayResponses.some(r => 
-      (r.studentId && r.studentId === s.id) ||
+      (r.studentId && String(r.studentId).trim() === String(s.id).trim()) ||
       (r.nama && s.nama && r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && isClassMatch(r.kelas, s.kelas))
     );
     return `
@@ -853,7 +879,6 @@ function renderStudentTable() {
   }).join('');
 }
 
-// RENDER DASHBOARD
 function renderDashboard() {
   const classFilterEl = document.getElementById('dashboardClassFilter');
   const dateFilterEl = document.getElementById('dashboardDateFilter');
@@ -912,11 +937,15 @@ function renderDashboard() {
   const targetDate = selectedDate === 'ALL' ? getTodayDateStr() : selectedDate;
   const targetDateResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate);
 
+  // Accurate pending count with double match
   const pendingCount = filteredStudents.filter(s => {
-    const voted = targetDateResponses.some(r => 
-      (r.studentId && r.studentId === s.id) ||
-      (r.nama && s.nama && r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && isClassMatch(r.kelas, s.kelas))
-    );
+    const voted = targetDateResponses.some(r => {
+      const matchId = r.studentId && String(r.studentId).trim() === String(s.id).trim();
+      const matchNameClass = r.nama && s.nama && 
+                             r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && 
+                             isClassMatch(r.kelas, s.kelas);
+      return matchId || matchNameClass;
+    });
     return !voted;
   }).length;
 
@@ -1070,6 +1099,9 @@ function renderClassSummaryTable(selectedDateFilter) {
   }).join('');
 }
 
+// ==========================================
+// EXPORTS & TOAST NOTIFICATION
+// ==========================================
 function downloadExcelTemplate() {
   const templateData = [
     { "Nama Siswa": "Ahmad Dahlan", "Kelas": "Kelas I" },
@@ -1128,7 +1160,9 @@ function showToast(message, icon = '✨') {
   }, 2500);
 }
 
-// SINKRONISASI 2 ARAH DARI GOOGLE SHEETS
+// ==========================================
+// SMART MERGE SYNC (GOOGLE SHEETS)
+// ==========================================
 async function syncDataFromGoogleSheets() {
   if (!GOOGLE_SCRIPT_URL) return;
   
@@ -1136,20 +1170,44 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Sync Respon
+    // 1. Smart Merge Responses (Preserves local entries before cloud write completes)
     if (Array.isArray(cloudData.responses)) {
-      surveyResponses = cloudData.responses.map(r => {
+      const cloudResponses = cloudData.responses.map(r => {
         r.dateStr = cleanDateStr(r.dateStr);
         return r;
       });
+
+      const responseMap = new Map();
+
+      // Load local data first
+      surveyResponses.forEach(r => {
+        const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
+        responseMap.set(key, r);
+      });
+
+      // Merge with cloud data
+      cloudResponses.forEach(r => {
+        const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
+        responseMap.set(key, r);
+      });
+
+      surveyResponses = Array.from(responseMap.values());
     }
-    // 2. Sync Siswa
-    if (Array.isArray(cloudData.students)) {
-      studentsData = cloudData.students;
+
+    // 2. Smart Merge Students
+    if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
+      const studentMap = new Map();
+      studentsData.forEach(s => studentMap.set(s.id, s));
+      cloudData.students.forEach(s => studentMap.set(s.id, s));
+      studentsData = Array.from(studentMap.values());
     }
-    // 3. Sync User
+
+    // 3. Smart Merge Users
     if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
-      usersData = cloudData.users;
+      const userMap = new Map();
+      usersData.forEach(u => userMap.set(u.id, u));
+      cloudData.users.forEach(u => userMap.set(u.id, u));
+      usersData = Array.from(userMap.values());
     }
 
     saveDataToLocalStorage();
