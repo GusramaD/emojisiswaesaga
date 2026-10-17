@@ -27,8 +27,6 @@ const emojiIconMap = {
 // ==========================================
 // HELPER FUNCTIONS (DATE & CLASS MATCHING)
 // ==========================================
-
-// Clean date format from GMT / Google Sheets Date Object to YYYY-MM-DD
 function cleanDateStr(dStr) {
   if (!dStr) return '';
   const str = String(dStr).trim();
@@ -50,7 +48,6 @@ function getTodayDateStr() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-// Extract grade number (1-6)
 function getGradeNumber(cls) {
   if (!cls) return '';
   let s = String(cls).toUpperCase().trim();
@@ -68,7 +65,6 @@ function getGradeNumber(cls) {
   return match ? match[0] : '';
 }
 
-// Smart Class Matching
 function isClassMatch(classA, classB) {
   if (!classA || !classB) return true;
   if (classA === 'ALL' || classB === 'ALL') return true;
@@ -107,7 +103,6 @@ function loadDataFromLocalStorage() {
   if (savedUsers) {
     usersData = JSON.parse(savedUsers);
   } else {
-    // Default Admin User Only
     usersData = [
       { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
     ];
@@ -200,7 +195,7 @@ function handleLogout() {
 }
 
 // ==========================================
-// TAB SWITCHING WITH ROLE GUARDS
+// TAB SWITCHING
 // ==========================================
 function switchTab(tabName) {
   if (tabName === 'dashboard' && !currentUser) {
@@ -677,7 +672,6 @@ function deleteAllResponsesForFilter() {
   const classFilter = document.getElementById('dashboardClassFilter').value;
   const dateFilter = document.getElementById('dashboardDateFilter').value;
 
-  // Filter respon yang sedang tampil berdasarkan Filter Tanggal & Filter Kelas
   const toDelete = surveyResponses.filter(r => {
     const matchClass = (classFilter === 'ALL') || isClassMatch(r.kelas, classFilter);
     const matchDate = (dateFilter === 'ALL') || (cleanDateStr(r.dateStr) === dateFilter);
@@ -695,14 +689,12 @@ function deleteAllResponsesForFilter() {
   if (confirm(`Apakah Anda yakin ingin menghapus ${toDelete.length} respon terfilter (${labelKelas} | ${labelTanggal})?`)) {
     const idsToDelete = toDelete.map(r => r.id);
 
-    // Hapus dari memori lokal
     surveyResponses = surveyResponses.filter(r => !idsToDelete.includes(r.id));
 
     saveDataToLocalStorage();
     renderDashboard();
     renderStudentTable();
 
-    // Kirim perintah hapus massal ke Google Sheets
     if (GOOGLE_SCRIPT_URL) {
       fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
@@ -718,8 +710,9 @@ function deleteAllResponsesForFilter() {
     showToast(`🗑️ Berhasil menghapus ${toDelete.length} respon terfilter.`, '⚠️');
   }
 }
+
 // ==========================================
-// VIEW RENDERING & SELECT POPULATION
+// VIEW RENDERING
 // ==========================================
 function updateAllViews() {
   populateClassSelects();
@@ -811,7 +804,6 @@ function submitStudentVote(score, emojiText) {
     timestamp: new Date().toLocaleString('id-ID')
   };
 
-  // Filter out existing vote from same student on same date
   surveyResponses = surveyResponses.filter(r => {
     const sameStudent = (r.studentId && String(r.studentId).trim() === String(currentStudent.id).trim()) ||
                         (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
@@ -987,7 +979,6 @@ function renderDashboard() {
   const targetDate = selectedDate === 'ALL' ? getTodayDateStr() : selectedDate;
   const targetDateResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate);
 
-  // Accurate pending count with double match
   const pendingCount = filteredStudents.filter(s => {
     const voted = targetDateResponses.some(r => {
       const matchId = r.studentId && String(r.studentId).trim() === String(s.id).trim();
@@ -1220,7 +1211,7 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Smart Merge Responses (Preserves local entries before cloud write completes)
+    // 1. Smart Merge Respon
     if (Array.isArray(cloudData.responses)) {
       const cloudResponses = cloudData.responses.map(r => {
         r.dateStr = cleanDateStr(r.dateStr);
@@ -1229,13 +1220,11 @@ async function syncDataFromGoogleSheets() {
 
       const responseMap = new Map();
 
-      // Load local data first
       surveyResponses.forEach(r => {
         const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
         responseMap.set(key, r);
       });
 
-      // Merge with cloud data
       cloudResponses.forEach(r => {
         const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
         responseMap.set(key, r);
@@ -1244,7 +1233,7 @@ async function syncDataFromGoogleSheets() {
       surveyResponses = Array.from(responseMap.values());
     }
 
-    // 2. Smart Merge Students
+    // 2. Smart Merge Data Siswa
     if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
       const studentMap = new Map();
       studentsData.forEach(s => studentMap.set(s.id, s));
@@ -1252,7 +1241,7 @@ async function syncDataFromGoogleSheets() {
       studentsData = Array.from(studentMap.values());
     }
 
-    // 3. Smart Merge Users
+    // 3. Smart Merge Data User
     if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
       const userMap = new Map();
       usersData.forEach(u => userMap.set(u.id, u));
