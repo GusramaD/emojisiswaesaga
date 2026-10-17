@@ -71,7 +71,7 @@
   <!-- TOP BAR / HEADER -->
   <header class="bg-white border-b border-sky-100 shadow-sm sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex flex-wrap justify-between items-center gap-3">
-      <!-- School Identity -->
+      <!-- Identitas Sekolah -->
       <div class="flex items-center gap-2.5">
         <div class="w-10 h-10 sm:w-12 sm:h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white text-xl sm:text-2xl shadow-md shadow-sky-200">
           🏫
@@ -87,7 +87,7 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs & Auth Section -->
+      <!-- Navigasi & Auth -->
       <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
         <nav class="flex bg-sky-50 p-1 rounded-xl border border-sky-100 text-xs sm:text-sm font-bold overflow-x-auto max-w-full">
           <button id="navSiswaBtn" onclick="switchTab('siswa')" class="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg bg-sky-600 text-white shadow-sm flex items-center gap-1.5 transition whitespace-nowrap">
@@ -101,7 +101,7 @@
           </button>
         </nav>
 
-        <!-- User Login / Logout Status Badge -->
+        <!-- Container Status User -->
         <div id="authStatusContainer">
           <button onclick="openLoginModal()" class="bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm transition flex items-center gap-1.5 border border-sky-300">
             <i class="fa-solid fa-right-to-bracket"></i> Login
@@ -117,7 +117,7 @@
     <!-- ==================== TAB 1: MODE SISWA ==================== -->
     <section id="tabSiswa" class="tab-content block">
       
-      <!-- Class Selector Modal/Card -->
+      <!-- Pilih Kelas -->
       <div id="siswaClassSelectCard" class="max-w-2xl mx-auto glass-card rounded-3xl p-6 sm:p-8 shadow-xl text-center border-t-8 border-sky-500 my-auto">
         <div class="text-4xl sm:text-5xl mb-2 sm:mb-3">🎓</div>
         <h2 class="text-xl sm:text-3xl font-bold text-sky-900 mb-2">Pilih Kelas untuk Sesi Survei</h2>
@@ -126,7 +126,6 @@
         <div class="mb-6 max-w-xs mx-auto">
           <label class="block text-left text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pilih Kelas:</label>
           <select id="siswaClassSelect" class="w-full text-base sm:text-lg p-3 sm:p-3.5 rounded-2xl border-2 border-sky-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none font-bold text-slate-700 bg-white">
-            <!-- Dynamic Class Options -->
           </select>
         </div>
 
@@ -136,14 +135,13 @@
 
         <div id="noDataWarning" class="hidden mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-800 text-xs sm:text-sm">
           <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-1"></i>
-          Belum ada data siswa terdaftar. Silakan minta Administrator untuk mengunggah file data siswa melalui <strong>Panel Admin</strong>.
+          Belum ada data siswa terdaftar. Silakan unggah file data siswa melalui <strong>Panel Admin</strong>.
         </div>
       </div>
 
-      <!-- ACTIVE VOTING SESSION INTERFACE -->
+      <!-- Tampilan Voting Siswa -->
       <div id="siswaVotingCard" class="hidden max-w-4xl mx-auto flex flex-col gap-4 sm:gap-6">
 
-        <!-- Top Status Bar & Progress -->
         <div class="glass-card rounded-2xl p-3.5 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
           <div class="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-start">
             <span id="currentClassBadge" class="bg-sky-100 text-sky-800 font-bold px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-base border border-sky-200">
@@ -154,7 +152,6 @@
             </span>
           </div>
 
-          <!-- Progress Bar -->
           <div class="w-full sm:w-1/2 bg-slate-200 rounded-full h-3 sm:h-4 overflow-hidden p-0.5 border border-slate-300">
             <div id="progressBar" class="bg-gradient-to-r from-sky-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
@@ -164,14 +161,11 @@
           </button>
         </div>
 
-        <!-- MAIN STUDENT CARD -->
         <div class="glass-card rounded-3xl p-4 sm:p-8 md:p-10 shadow-2xl text-center border-2 border-sky-200 relative overflow-hidden pulse-animation">
-          
           <div class="text-[10px] sm:text-xs font-extrabold uppercase tracking-widest text-sky-600 mb-1">
             GILIRAN SISWA SAAT INI
           </div>
 
-          <!-- Student Name Display -->
           <div class="flex items-center justify-center gap-2 sm:gap-3 mb-1 sm:mb-2">
             <h2 id="studentNameDisplay" class="text-2xl sm:text-4xl md:text-5xl font-extrabold text-slate-800 tracking-tight">
               Nama Siswa
@@ -185,9 +179,8 @@
             Bagaimana perasaanmu belajar hari ini?
           </p>
 
-          <!-- EMOJI SELECTION GRID -->
+          <!-- PILIHAN EMOJI -->
           <div class="grid grid-cols-5 gap-1.5 sm:gap-3 md:gap-4 mb-6 sm:mb-8 max-w-3xl mx-auto">
-            
             <button onclick="submitStudentVote(5, 'Sangat Senang')" class="emoji-btn bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-300 rounded-2xl sm:rounded-3xl p-1.5 sm:p-3 md:p-5 flex flex-col items-center justify-center shadow-md">
               <span class="text-3xl sm:text-5xl md:text-6xl mb-1 sm:mb-2">🤩</span>
               <span class="font-title font-bold text-[10px] sm:text-xs md:text-base text-emerald-800 leading-tight">Sangat Senang</span>
@@ -214,30 +207,28 @@
             </button>
           </div>
 
-          <!-- SKIP BUTTON -->
           <div class="flex justify-end pt-3 sm:pt-4 border-t border-slate-100">
             <button onclick="skipStudent()" class="text-xs font-bold text-slate-400 hover:text-slate-600 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl hover:bg-slate-100 transition flex items-center gap-1.5">
               <i class="fa-solid fa-user-slash"></i> Siswa Tidak Hadir / Lewati
             </button>
           </div>
-
         </div>
       </div>
 
-      <!-- FINISHED SESSION CARD -->
+      <!-- Kartu Sesi Selesai -->
       <div id="siswaFinishedCard" class="hidden max-w-2xl mx-auto glass-card rounded-3xl p-6 sm:p-8 shadow-xl text-center border-t-8 border-emerald-500 my-auto">
         <div class="text-5xl sm:text-6xl mb-3 sm:mb-4">🎉</div>
         <h2 class="text-2xl sm:text-3xl font-bold text-emerald-900 mb-2">Selesai! Terima Kasih</h2>
         <p class="text-slate-600 mb-6 text-sm sm:text-lg">Seluruh siswa di kelas ini telah memilih kepuasan hari ini.</p>
         
-        <div class="bg-emerald-50 rounded-2xl p-4 mb-6 flex justify-around text-center">
+        <div class="bg-emerald-50 rounded-2xl p-4 mb-6 flex justify-around text-center border border-emerald-200">
           <div>
-            <div class="text-xs text-emerald-600 font-bold uppercase">TOTAL MENGISI</div>
+            <div class="text-xs text-emerald-600 font-bold uppercase mb-1">TOTAL MENGISI</div>
             <div id="statTotalVoted" class="text-2xl sm:text-3xl font-black text-emerald-900">0</div>
           </div>
           <div class="border-r border-emerald-200"></div>
           <div>
-            <div class="text-xs text-emerald-600 font-bold uppercase">MELEWATI / ABSEN</div>
+            <div class="text-xs text-emerald-600 font-bold uppercase mb-1">MELEWATI / ABSEN</div>
             <div id="statTotalSkipped" class="text-2xl sm:text-3xl font-black text-emerald-900">0</div>
           </div>
         </div>
@@ -258,7 +249,7 @@
     <section id="tabDashboard" class="tab-content hidden">
       <div class="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         
-        <!-- Header & Multi-Filter Selectors -->
+        <!-- Header & Filter -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md border-l-8 border-sky-500 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 class="text-xl sm:text-2xl font-bold text-sky-900">Laporan & Rekapitulasi Kepuasan</h2>
@@ -266,8 +257,6 @@
           </div>
           
           <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-            
-            <!-- Filter Tanggal Harian -->
             <div class="flex-1 min-w-[130px] md:flex-initial">
               <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Filter Tanggal:</label>
               <select id="dashboardDateFilter" onchange="renderDashboard()" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border-2 border-sky-200 focus:border-sky-500 outline-none font-bold text-sky-900 bg-white shadow-sm">
@@ -275,7 +264,6 @@
               </select>
             </div>
 
-            <!-- Filter Kelas (Terkunci Otomatis jika Guru) -->
             <div class="flex-1 min-w-[130px] md:flex-initial">
               <label class="block text-[11px] font-bold text-slate-400 uppercase mb-1">Filter Kelas:</label>
               <select id="dashboardClassFilter" onchange="renderDashboard()" class="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border-2 border-sky-200 focus:border-sky-500 outline-none font-bold text-sky-900 bg-white shadow-sm">
@@ -289,7 +277,7 @@
           </div>
         </div>
 
-        <!-- STATS CARDS GRID -->
+        <!-- STATS CARDS -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div class="glass-card rounded-2xl p-4 sm:p-5 shadow-sm text-center">
             <div class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase mb-1">Total Responden</div>
@@ -311,7 +299,6 @@
 
         <!-- REKAPITULASI GRID -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          
           <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md flex flex-col justify-between">
             <div>
               <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
@@ -353,26 +340,25 @@
               </div>
             </div>
           </div>
-
         </div>
 
-        <!-- EMOJI DISTRIBUTION BARS -->
+        <!-- DISTRIBUSI EMOJI -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md">
           <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-chart-bar text-sky-600"></i> Distribusi Kepuasan <span id="distroClassTitle" class="text-sky-600 font-bold">(Semua)</span>
+            <i class="fa-solid fa-chart-bar text-sky-600"></i> Grafik Distribusi Kepuasan
           </h3>
           <div class="space-y-3.5" id="emojiDistributionBars"></div>
         </div>
 
-        <!-- RESPONSES HISTORY TABLE -->
+        <!-- RIWAYAT JAWABAN SISWA -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md overflow-hidden">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
               <i class="fa-solid fa-clock-rotate-left text-sky-600"></i> Riwayat Jawaban Siswa
             </h3>
             
-            <button id="btnClearResponsesAdmin" onclick="deleteAllResponsesForFilter()" class="hidden text-xs bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-1.5 rounded-xl transition">
-              <i class="fa-solid fa-trash-can mr-1"></i> Hapus Respon Terfilter
+            <button id="btnClearResponsesAdmin" onclick="deleteAllResponsesForFilter()" class="hidden text-xs bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+              <i class="fa-solid fa-trash-can"></i> Hapus Respon Terfilter
             </button>
           </div>
 
@@ -395,22 +381,21 @@
       </div>
     </section>
 
-    <!-- ==================== TAB 3: PANEL ADMIN (KHUSUS ADMINISTRATOR) ==================== -->
+    <!-- ==================== TAB 3: PANEL ADMIN ==================== -->
     <section id="tabAdmin" class="tab-content hidden">
       <div class="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         
-        <!-- Header Panel Admin -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md border-l-8 border-amber-500 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 class="text-xl sm:text-2xl font-bold text-amber-900">Panel Administrator Sekolah</h2>
-            <p class="text-slate-500 text-xs sm:text-sm">Pusat kendali unggah data siswa, kelola daftar siswa terdaftar, dan buat akun Guru Kelas I–VI.</p>
+            <p class="text-slate-500 text-xs sm:text-sm">Pusat kendali unggah data siswa, kelola daftar siswa, dan buat akun Guru Kelas.</p>
           </div>
           <button onclick="downloadExcelTemplate()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-sm transition flex items-center gap-2">
             <i class="fa-solid fa-file-arrow-down"></i> Unduh Template Excel
           </button>
         </div>
 
-        <!-- SECTION 1: UNGGAH EXCEL DATA SISWA -->
+        <!-- UNGGAH EXCEL -->
         <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-md border-2 border-dashed border-sky-300 hover:border-sky-500 transition text-center bg-sky-50/50">
           <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)" class="hidden">
           
@@ -418,14 +403,13 @@
             <i class="fa-solid fa-file-excel"></i>
           </div>
           <h3 class="text-lg sm:text-xl font-bold text-sky-900 mb-1">Unggah Berkas Excel Siswa Baru</h3>
-          <p class="text-slate-500 text-xs sm:text-sm mb-4">Mendukung format .xlsx, .xls, atau .csv (Kolom minimal: <strong>Nama</strong>, <strong>Kelas</strong>)</p>
+          <p class="text-slate-500 text-xs sm:text-sm mb-4">Mendukung file .xlsx, .xls, atau .csv (Kolom minimal: <strong>Nama</strong>, <strong>Kelas</strong>)</p>
 
           <label for="excelFileInput" class="cursor-pointer bg-sky-600 hover:bg-sky-700 text-white font-bold px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl shadow-md inline-flex items-center gap-2 text-xs sm:text-sm transition">
             <i class="fa-solid fa-upload"></i> Pilih File Excel Dari Komputer
           </label>
         </div>
 
-        <!-- ACTIONS: DEMO & RESET DATA -->
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs sm:text-sm">
           <button onclick="loadSampleData()" class="text-sky-600 font-bold hover:underline flex items-center gap-1.5">
             <i class="fa-solid fa-wand-magic-sparkles"></i> Gunakan Data Contoh SD Negeri 1 Tiga
@@ -435,10 +419,8 @@
           </button>
         </div>
 
-        <!-- SECTION 2: DAFTAR SISWA TERDAFTAR (DENGAN FORM TAMBAH & EDIT) -->
+        <!-- DAFTAR SISWA -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md overflow-hidden">
-          
-          <!-- Header & Filter -->
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
             <h3 class="text-base sm:text-lg font-bold text-slate-800">
               Daftar Siswa Terdaftar (<span id="totalStudentsBadge">0</span>)
@@ -452,7 +434,6 @@
             </div>
           </div>
 
-          <!-- FORM TAMBAH SISWA MANUAL -->
           <form onsubmit="handleAddSingleStudent(event)" class="flex flex-col sm:flex-row gap-2.5 mb-4 bg-sky-50/80 p-3 sm:p-3.5 rounded-2xl border border-sky-200">
             <div class="flex-1">
               <label class="block text-[10px] font-bold text-sky-800 uppercase mb-1">Nama Siswa Baru:</label>
@@ -478,7 +459,6 @@
             </div>
           </form>
 
-          <!-- TABEL SISWA -->
           <div class="overflow-x-auto max-h-80 overflow-y-auto border border-slate-100 rounded-2xl">
             <table class="w-full text-left text-xs sm:text-sm text-slate-600">
               <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sm:text-xs font-bold sticky top-0">
@@ -490,16 +470,12 @@
                   <th class="p-2.5 sm:p-3 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody id="studentTableBody" class="divide-y divide-slate-100">
-                <tr>
-                  <td colspan="5" class="p-6 text-center text-slate-400">Belum ada data siswa. Silakan tambahkan manual atau unggah file Excel.</td>
-                </tr>
-              </tbody>
+              <tbody id="studentTableBody" class="divide-y divide-slate-100"></tbody>
             </table>
           </div>
         </div>
 
-        <!-- SECTION 3: KELOLA AKUN GURU & ADMIN -->
+        <!-- KELOLA USER -->
         <div class="glass-card rounded-3xl p-4 sm:p-6 shadow-md">
           <h3 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
             <i class="fa-solid fa-users-gear text-amber-600"></i> Kelola Akun Pengguna / Guru Kelas
@@ -530,7 +506,7 @@
             </div>
 
             <div id="classAssignmentGroup" class="md:col-span-2 bg-amber-50/80 p-3.5 sm:p-4 rounded-xl border border-amber-200">
-              <label class="block text-xs font-bold text-amber-900 uppercase mb-1">Kelas yang Diampu (Hak Akses Laporan Guru):</label>
+              <label class="block text-xs font-bold text-amber-900 uppercase mb-1">Kelas yang Diampu:</label>
               <select id="newAssignedClass" class="w-full p-2.5 sm:p-3 rounded-xl border border-amber-300 outline-none focus:border-amber-500 font-bold text-amber-900 bg-white text-xs sm:text-sm">
                 <option value="Kelas I">Kelas I</option>
                 <option value="Kelas II">Kelas II</option>
@@ -548,7 +524,6 @@
             </div>
           </form>
 
-          <!-- Tabel Akun Terdaftar -->
           <div class="overflow-x-auto border border-slate-100 rounded-2xl">
             <table class="w-full text-left text-xs sm:text-sm text-slate-600">
               <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] sm:text-xs font-bold">
@@ -570,10 +545,9 @@
 
   </main>
 
-  <!-- ==================== LOGIN MODAL POPUP ==================== -->
+  <!-- MODAL LOGIN -->
   <div id="loginModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-sky-200 animate-fadeIn">
-      
+    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-sky-200">
       <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl w-8 h-8 rounded-full flex items-center justify-center">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -602,18 +576,16 @@
         </button>
       </form>
 
-      <!-- Default Credentials Info -->
       <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] sm:text-xs text-slate-500 bg-slate-50 p-3 rounded-xl space-y-1">
         <div class="font-bold text-slate-700 mb-1">🔑 Akun Default Bawaan:</div>
         <div>• <strong>Admin Utama</strong>: <code>admin</code> / <code>admin123</code></div>
       </div>
-
     </div>
   </div>
 
-  <!-- ==================== MODAL EDIT SISWA ==================== -->
+  <!-- MODAL EDIT SISWA -->
   <div id="editStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-sky-200 animate-fadeIn">
+    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-sky-200">
       <button onclick="closeEditStudentModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl w-8 h-8 rounded-full flex items-center justify-center">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -653,9 +625,9 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL EDIT USER ==================== -->
+  <!-- MODAL EDIT USER -->
   <div id="editUserModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-amber-200 animate-fadeIn">
+    <div class="glass-card w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative border-2 border-amber-200">
       <button onclick="closeEditUserModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl w-8 h-8 rounded-full flex items-center justify-center">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -719,7 +691,6 @@
     <span id="toastMessage">Pesan Notifikasi</span>
   </div>
 
-  <!-- PEMANGGILAN FILE SCRIPT JAVASCRIPT EXTERNAL -->
   <script src="script.js"></script>
 </body>
 </html>
