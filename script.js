@@ -5,7 +5,7 @@ let usersData = [];
 let currentUser = null; // null = Guest / Mode Siswa
 
 // OPTIONAL: Google Apps Script Web App URL (Kosongkan jika menggunakan LocalStorage)
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfRZA_JHapuK9GnBnpp50cUIQzaxxHB7hSdbVrvhiEMuRW4wxLzVWodS9znLr2vLazbA/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby-oyF5NxWvPJLiFiIkusvzDgm0_bl6agBZslGJJmspIR7ohUsIFnxWN47EZJ6nS-TEEA/exec'; 
 
 // Siswa Session state
 let activeClass = '';
