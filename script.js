@@ -11,6 +11,8 @@ const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJ
 let activeClass = '';
 let activeClassStudents = [];
 let currentStudentIndex = 0;
+let sessionVotedCount = 0;
+let sessionSkippedCount = 0;
 
 const emojiIconMap = {
   'Sangat Senang': '🤩',
@@ -98,7 +100,6 @@ function loadDataFromLocalStorage() {
   if (savedUsers) {
     usersData = JSON.parse(savedUsers);
   } else {
-    // Hanya Admin Utama Default
     usersData = [
       { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
     ];
@@ -697,6 +698,8 @@ function startSiswaSession() {
   activeClass = selectedClass;
   activeClassStudents = studentsData.filter(s => isClassMatch(s.kelas, activeClass));
   currentStudentIndex = 0;
+  sessionVotedCount = 0;
+  sessionSkippedCount = 0;
 
   document.getElementById('siswaClassSelectCard').classList.add('hidden');
   document.getElementById('siswaFinishedCard').classList.add('hidden');
@@ -735,8 +738,15 @@ function submitStudentVote(score, emojiText) {
     timestamp: new Date().toLocaleString('id-ID')
   };
 
-  surveyResponses = surveyResponses.filter(r => !(r.studentId === currentStudent.id && r.dateStr === todayDateStr));
+  surveyResponses = surveyResponses.filter(r => {
+    const sameStudent = (r.studentId && r.studentId === currentStudent.id) ||
+                        (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
+    const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
+    return !(sameStudent && sameDate);
+  });
+  
   surveyResponses.push(dataRespon);
+  sessionVotedCount++;
 
   saveDataToLocalStorage();
 
@@ -756,6 +766,7 @@ function submitStudentVote(score, emojiText) {
 }
 
 function skipStudent() {
+  sessionSkippedCount++;
   currentStudentIndex++;
   displayCurrentStudent();
 }
@@ -773,6 +784,12 @@ function speakCurrentStudent() {
 function finishSiswaSession() {
   document.getElementById('siswaVotingCard').classList.add('hidden');
   document.getElementById('siswaFinishedCard').classList.remove('hidden');
+
+  const votedEl = document.getElementById('statTotalVoted');
+  const skippedEl = document.getElementById('statTotalSkipped');
+  if (votedEl) votedEl.textContent = sessionVotedCount;
+  if (skippedEl) skippedEl.textContent = sessionSkippedCount;
+
   populateDateSelects();
 }
 
@@ -806,9 +823,13 @@ function renderStudentTable() {
   }
 
   const isAdmin = currentUser && currentUser.role === 'admin';
+  const todayResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === todayStr);
 
   tbody.innerHTML = filtered.map((s, index) => {
-    const hasVotedToday = surveyResponses.some(r => r.studentId === s.id && r.dateStr === todayStr);
+    const hasVotedToday = todayResponses.some(r => 
+      (r.studentId && r.studentId === s.id) ||
+      (r.nama && s.nama && r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && isClassMatch(r.kelas, s.kelas))
+    );
     return `
       <tr class="hover:bg-sky-50/50">
         <td class="p-2.5 sm:p-3 font-bold">${index + 1}</td>
@@ -889,9 +910,17 @@ function renderDashboard() {
   document.getElementById('statTotalResponses').textContent = totalResp;
 
   const targetDate = selectedDate === 'ALL' ? getTodayDateStr() : selectedDate;
-  const votedStudentIds = new Set(surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate).map(r => r.studentId));
-  const pending = filteredStudents.filter(s => !votedStudentIds.has(s.id)).length;
-  document.getElementById('statPendingStudents').textContent = pending > 0 ? pending : 0;
+  const targetDateResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate);
+
+  const pendingCount = filteredStudents.filter(s => {
+    const voted = targetDateResponses.some(r => 
+      (r.studentId && r.studentId === s.id) ||
+      (r.nama && s.nama && r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && isClassMatch(r.kelas, s.kelas))
+    );
+    return !voted;
+  }).length;
+
+  document.getElementById('statPendingStudents').textContent = pendingCount;
 
   if (totalResp === 0) {
     document.getElementById('statSatisfactionRate').textContent = '0%';
@@ -1107,7 +1136,7 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Sync Respon & Rapikan Tanggal
+    // 1. Sync Respon
     if (Array.isArray(cloudData.responses)) {
       surveyResponses = cloudData.responses.map(r => {
         r.dateStr = cleanDateStr(r.dateStr);
