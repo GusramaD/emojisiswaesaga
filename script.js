@@ -223,21 +223,32 @@ function handleAddSingleStudent(e) {
 
   const namaInput = document.getElementById('manualNamaSiswa');
   const kelasInput = document.getElementById('manualKelasSiswa');
-
   const nama = namaInput.value.trim();
   const kelas = kelasInput.value;
 
   if (!nama) return;
 
-  const newStudent = {
+  const newStudentPayload = {
+    action: 'ADD_STUDENT',
     id: 'std_' + Date.now(),
     nama: nama,
     kelas: kelas
   };
 
-  studentsData.push(newStudent);
+  // Simpan di LocalStorage Browser
+  studentsData.push({ id: newStudentPayload.id, nama: newStudentPayload.nama, kelas: newStudentPayload.kelas });
   saveDataToLocalStorage();
   updateAllViews();
+
+  // Kirim ke Google Sheets
+  if (GOOGLE_SCRIPT_URL) {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newStudentPayload)
+    }).catch(err => console.error('Gagal kirim data siswa ke Google Sheets:', err));
+  }
 
   namaInput.value = '';
   showToast(`✅ Siswa "${nama}" berhasil ditambahkan!`, '👤');
