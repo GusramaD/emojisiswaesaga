@@ -5,7 +5,25 @@ let usersData = [];
 let currentUser = null; // null = Guest / Mode Siswa
 
 // GOOGLE APPS SCRIPT WEB APP URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec';
+
+// FUNGSI PEMBERSIH FORMAT TANGGAL
+function cleanDateStr(dStr) {
+  if (!dStr) return '';
+  const str = String(dStr).trim();
+  
+  // Jika formatnya panjang dari Google Sheets (mengandung GMT/Waktu)
+  if (str.includes('GMT') || str.includes('00:00:00') || str.includes('T')) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`; // Hasil: 2026-10-17
+    }
+  }
+  return str;
+}
 
 // Siswa Session state
 let activeClass = '';
@@ -658,7 +676,13 @@ function populateClassSelects() {
 function populateDateSelects() {
   const dashDateFilter = document.getElementById('dashboardDateFilter');
   dashDateFilter.innerHTML = '<option value="ALL">📅 Semua Tanggal</option>';
-  const dates = [...new Set(surveyResponses.map(r => r.dateStr))].filter(Boolean).sort().reverse();
+  
+  // Bersihkan semua tanggal yang masuk agar tidak ada format GMT panjang
+  const dates = [...new Set(surveyResponses.map(r => cleanDateStr(r.dateStr)))]
+    .filter(Boolean)
+    .sort()
+    .reverse();
+    
   dates.forEach(dStr => dashDateFilter.appendChild(new Option(`🗓️ ${dStr}`, dStr)));
 }
 
@@ -1080,14 +1104,19 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Sync Respon
+    // 1. Sync Respon & Rapikan Tanggal Otomatis
     if (Array.isArray(cloudData.responses)) {
-      surveyResponses = cloudData.responses;
+      surveyResponses = cloudData.responses.map(r => {
+        r.dateStr = cleanDateStr(r.dateStr); // Otomatis rapikan tanggal GMT
+        return r;
+      });
     }
+    
     // 2. Sync Siswa
     if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
       studentsData = cloudData.students;
     }
+    
     // 3. Sync User
     if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
       usersData = cloudData.users;
