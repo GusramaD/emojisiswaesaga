@@ -668,6 +668,56 @@ function deleteSingleResponse(respId) {
   }
 }
 
+function deleteAllResponsesForFilter() {
+  if (!currentUser || currentUser.role !== 'admin') {
+    showToast('⛔ Hanya Admin yang dapat menghapus respon.');
+    return;
+  }
+
+  const classFilter = document.getElementById('dashboardClassFilter').value;
+  const dateFilter = document.getElementById('dashboardDateFilter').value;
+
+  // Filter respon yang sedang tampil berdasarkan Filter Tanggal & Filter Kelas
+  const toDelete = surveyResponses.filter(r => {
+    const matchClass = (classFilter === 'ALL') || isClassMatch(r.kelas, classFilter);
+    const matchDate = (dateFilter === 'ALL') || (cleanDateStr(r.dateStr) === dateFilter);
+    return matchClass && matchDate;
+  });
+
+  if (toDelete.length === 0) {
+    showToast('⚠️ Tidak ada respon terfilter yang dapat dihapus.');
+    return;
+  }
+
+  const labelKelas = classFilter === 'ALL' ? 'Semua Kelas' : classFilter;
+  const labelTanggal = dateFilter === 'ALL' ? 'Semua Tanggal' : dateFilter;
+
+  if (confirm(`Apakah Anda yakin ingin menghapus ${toDelete.length} respon terfilter (${labelKelas} | ${labelTanggal})?`)) {
+    const idsToDelete = toDelete.map(r => r.id);
+
+    // Hapus dari memori lokal
+    surveyResponses = surveyResponses.filter(r => !idsToDelete.includes(r.id));
+
+    saveDataToLocalStorage();
+    renderDashboard();
+    renderStudentTable();
+
+    // Kirim perintah hapus massal ke Google Sheets
+    if (GOOGLE_SCRIPT_URL) {
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE_BULK_RESPONSES',
+          ids: idsToDelete
+        })
+      }).catch(err => console.error('Gagal hapus respon terfilter di Sheets:', err));
+    }
+
+    showToast(`🗑️ Berhasil menghapus ${toDelete.length} respon terfilter.`, '⚠️');
+  }
+}
 // ==========================================
 // VIEW RENDERING & SELECT POPULATION
 // ==========================================
