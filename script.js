@@ -7,7 +7,7 @@ let usersData = [];
 let currentUser = null; // null = Guest / Mode Siswa
 
 // GOOGLE APPS SCRIPT WEB APP URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwfRZA_JHapuK9GnBnpp50cUIQzaxxHB7hSdbVrvhiEMuRW4wxLzVWodS9znLr2vLazbA/exec'; 
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
 // Siswa Voting Session state
 let activeClass = '';
