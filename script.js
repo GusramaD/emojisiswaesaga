@@ -15,6 +15,7 @@ let activeClassStudents = [];
 let currentStudentIndex = 0;
 let sessionVotedCount = 0;
 let sessionSkippedCount = 0;
+let isProcessingVote = false; // Status pengunci untuk mencegah double-tap
 
 const emojiIconMap = {
   'Sangat Senang': '🤩',
@@ -79,6 +80,20 @@ function isClassMatch(classA, classB) {
   const cleanA = String(classA).toLowerCase().replace(/[\s\-_]/g, '');
   const cleanB = String(classB).toLowerCase().replace(/[\s\-_]/g, '');
   return cleanA === cleanB;
+}
+
+// Fungsi pengunci tombol emoji saat jeda perpindahan
+function setEmojiButtonsState(enabled) {
+  const emojiButtons = document.querySelectorAll('.emoji-btn');
+  emojiButtons.forEach(btn => {
+    if (enabled) {
+      btn.classList.remove('pointer-events-none', 'opacity-40');
+      btn.disabled = false;
+    } else {
+      btn.classList.add('pointer-events-none', 'opacity-40');
+      btn.disabled = true;
+    }
+  });
 }
 
 // ==========================================
@@ -766,11 +781,13 @@ function startSiswaSession() {
   currentStudentIndex = 0;
   sessionVotedCount = 0;
   sessionSkippedCount = 0;
+  isProcessingVote = false;
 
   document.getElementById('siswaClassSelectCard').classList.add('hidden');
   document.getElementById('siswaFinishedCard').classList.add('hidden');
   document.getElementById('siswaVotingCard').classList.remove('hidden');
 
+  setEmojiButtonsState(true);
   displayCurrentStudent();
 }
 
@@ -789,6 +806,10 @@ function displayCurrentStudent() {
 }
 
 function submitStudentVote(score, emojiText) {
+  if (isProcessingVote) return;
+  isProcessingVote = true;
+  setEmojiButtonsState(false);
+
   confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
   const currentStudent = activeClassStudents[currentStudentIndex];
   const todayDateStr = getTodayDateStr();
@@ -828,13 +849,26 @@ function submitStudentVote(score, emojiText) {
   showToast(`Terima kasih, ${currentStudent.nama}! 😊`, '✨');
 
   currentStudentIndex++;
-  setTimeout(displayCurrentStudent, 400);
+  setTimeout(() => {
+    displayCurrentStudent();
+    isProcessingVote = false;
+    setEmojiButtonsState(true);
+  }, 800);
 }
 
 function skipStudent() {
+  if (isProcessingVote) return;
+  isProcessingVote = true;
+  setEmojiButtonsState(false);
+
   sessionSkippedCount++;
   currentStudentIndex++;
-  displayCurrentStudent();
+
+  setTimeout(() => {
+    displayCurrentStudent();
+    isProcessingVote = false;
+    setEmojiButtonsState(true);
+  }, 400);
 }
 
 function speakCurrentStudent() {
@@ -867,6 +901,8 @@ function resetToClassSelect() {
   document.getElementById('siswaVotingCard').classList.add('hidden');
   document.getElementById('siswaFinishedCard').classList.add('hidden');
   document.getElementById('siswaClassSelectCard').classList.remove('hidden');
+  isProcessingVote = false;
+  setEmojiButtonsState(true);
 }
 
 // ==========================================
