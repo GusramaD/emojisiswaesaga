@@ -22,7 +22,8 @@ const emojiIconMap = {
   'Senang': '😊',
   'Biasa Saja': '😐',
   'Kurang Senang': '🙁',
-  'Sedih': '😢'
+  'Sedih': '😢',
+  'Tidak Hadir': '🚫'
 };
 
 // ==========================================
@@ -82,7 +83,7 @@ function isClassMatch(classA, classB) {
   return cleanA === cleanB;
 }
 
-// Fungsi pengunci tombol emoji saat jeda perpindahan
+// Pengunci tombol emoji saat jeda perpindahan
 function setEmojiButtonsState(enabled) {
   const emojiButtons = document.querySelectorAll('.emoji-btn');
   emojiButtons.forEach(btn => {
@@ -861,7 +862,43 @@ function skipStudent() {
   isProcessingVote = true;
   setEmojiButtonsState(false);
 
+  const currentStudent = activeClassStudents[currentStudentIndex];
+  const todayDateStr = getTodayDateStr();
+
+  const dataRespon = {
+    id: 'resp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    studentId: currentStudent.id,
+    nama: currentStudent.nama,
+    kelas: currentStudent.kelas,
+    score: 0,
+    emojiText: 'Tidak Hadir',
+    dateStr: todayDateStr,
+    timestamp: new Date().toLocaleString('id-ID')
+  };
+
+  surveyResponses = surveyResponses.filter(r => {
+    const sameStudent = (r.studentId && String(r.studentId).trim() === String(currentStudent.id).trim()) ||
+                        (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
+    const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
+    return !(sameStudent && sameDate);
+  });
+
+  surveyResponses.push(dataRespon);
   sessionSkippedCount++;
+
+  saveDataToLocalStorage();
+
+  if (GOOGLE_SCRIPT_URL) {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dataRespon)
+    }).catch(err => console.error('Error Google Sheets:', err));
+  }
+
+  showToast(`Siswa ${currentStudent.nama} dicatat Tidak Hadir.`, 'ℹ️');
+
   currentStudentIndex++;
 
   setTimeout(() => {
@@ -1028,22 +1065,29 @@ function renderDashboard() {
 
   document.getElementById('statPendingStudents').textContent = pendingCount;
 
+  const validResponses = filteredResponses.filter(r => r.score > 0);
+  const totalValidResp = validResponses.length;
+
   if (totalResp === 0) {
     document.getElementById('statSatisfactionRate').textContent = '0%';
     document.getElementById('statTopEmoji').textContent = '-';
     document.getElementById('responseTableBody').innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">Belum ada respon untuk filter ini.</td></tr>`;
     document.getElementById('emojiDistributionBars').innerHTML = `<p class="text-slate-400 text-xs sm:text-sm">Belum ada data.</p>`;
   } else {
-    const totalScore = filteredResponses.reduce((acc, r) => acc + r.score, 0);
-    document.getElementById('statSatisfactionRate').textContent = `${Math.round((totalScore / (totalResp * 5)) * 100)}%`;
+    if (totalValidResp > 0) {
+      const totalScore = validResponses.reduce((acc, r) => acc + r.score, 0);
+      document.getElementById('statSatisfactionRate').textContent = `${Math.round((totalScore / (totalValidResp * 5)) * 100)}%`;
+    } else {
+      document.getElementById('statSatisfactionRate').textContent = '0%';
+    }
 
-    const emojiCounts = { 'Sangat Senang': 0, 'Senang': 0, 'Biasa Saja': 0, 'Kurang Senang': 0, 'Sedih': 0 };
+    const emojiCounts = { 'Sangat Senang': 0, 'Senang': 0, 'Biasa Saja': 0, 'Kurang Senang': 0, 'Sedih': 0, 'Tidak Hadir': 0 };
     filteredResponses.forEach(r => { if (emojiCounts[r.emojiText] !== undefined) emojiCounts[r.emojiText]++; });
 
     let topEmoji = '🤩';
     let maxCount = -1;
     Object.keys(emojiCounts).forEach(key => {
-      if (emojiCounts[key] > maxCount) {
+      if (key !== 'Tidak Hadir' && emojiCounts[key] > maxCount) {
         maxCount = emojiCounts[key];
         topEmoji = emojiIconMap[key];
       }
@@ -1053,6 +1097,7 @@ function renderDashboard() {
     document.getElementById('emojiDistributionBars').innerHTML = Object.keys(emojiCounts).map(key => {
       const count = emojiCounts[key];
       const barPct = Math.round((count / totalResp) * 100);
+      const isAbsent = key === 'Tidak Hadir';
       return `
         <div>
           <div class="flex justify-between text-xs font-bold mb-1 text-slate-700">
@@ -1060,7 +1105,7 @@ function renderDashboard() {
             <span>${count} siswa (${barPct}%)</span>
           </div>
           <div class="w-full bg-slate-100 h-2.5 sm:h-3 rounded-full overflow-hidden">
-            <div class="bg-sky-500 h-full rounded-full" style="width: ${barPct}%"></div>
+            <div class="${isAbsent ? 'bg-rose-400' : 'bg-sky-500'} h-full rounded-full" style="width: ${barPct}%"></div>
           </div>
         </div>
       `;
@@ -1072,7 +1117,9 @@ function renderDashboard() {
         <td class="p-2.5 sm:p-3 text-[11px] sm:text-xs text-slate-500 font-mono">${r.timestamp || cleanDateStr(r.dateStr)}</td>
         <td class="p-2.5 sm:p-3 font-semibold text-slate-800">${r.nama}</td>
         <td class="p-2.5 sm:p-3"><span class="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-lg text-xs font-bold">${r.kelas}</span></td>
-        <td class="p-2.5 sm:p-3 font-bold">${emojiIconMap[r.emojiText] || ''} ${r.emojiText}</td>
+        <td class="p-2.5 sm:p-3 font-bold ${r.emojiText === 'Tidak Hadir' ? 'text-rose-600' : ''}">
+          ${emojiIconMap[r.emojiText] || ''} ${r.emojiText}
+        </td>
         ${isAdmin ? `
           <td class="p-2.5 sm:p-3 text-center">
             <button onclick="deleteSingleResponse('${r.id}')" class="text-xs bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2 py-1 rounded-lg transition" title="Hapus Respon Ini">
@@ -1103,12 +1150,13 @@ function renderDailySummaryTable(selectedClassFilter) {
       dayResponses = dayResponses.filter(r => isClassMatch(r.kelas, selectedClassFilter));
     }
 
+    const validResp = dayResponses.filter(r => r.score > 0);
     const count = dayResponses.length;
     let satisfactionPct = 0;
 
-    if (count > 0) {
-      const totalScore = dayResponses.reduce((acc, r) => acc + r.score, 0);
-      satisfactionPct = Math.round((totalScore / (count * 5)) * 100);
+    if (validResp.length > 0) {
+      const totalScore = validResp.reduce((acc, r) => acc + r.score, 0);
+      satisfactionPct = Math.round((totalScore / (validResp.length * 5)) * 100);
     }
 
     return `
@@ -1149,12 +1197,13 @@ function renderClassSummaryTable(selectedDateFilter) {
       clsResponses = clsResponses.filter(r => cleanDateStr(r.dateStr) === selectedDateFilter);
     }
 
+    const validResp = clsResponses.filter(r => r.score > 0);
     const count = clsResponses.length;
     let satisfactionPct = 0;
 
-    if (count > 0) {
-      const totalScore = clsResponses.reduce((acc, r) => acc + r.score, 0);
-      satisfactionPct = Math.round((totalScore / (count * 5)) * 100);
+    if (validResp.length > 0) {
+      const totalScore = validResp.reduce((acc, r) => acc + r.score, 0);
+      satisfactionPct = Math.round((totalScore / (validResp.length * 5)) * 100);
     }
 
     return `
