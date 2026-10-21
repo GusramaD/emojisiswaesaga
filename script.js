@@ -3,10 +3,12 @@
 // ==========================================
 let studentsData = [];
 let surveyResponses = [];
-let usersData = [];
+let usersData = [
+  { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
+];
 let currentUser = null; // null = Guest / Mode Siswa
 
-// GOOGLE APPS SCRIPT WEB APP URL
+// MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
 // Siswa Voting Session state
@@ -15,7 +17,7 @@ let activeClassStudents = [];
 let currentStudentIndex = 0;
 let sessionVotedCount = 0;
 let sessionSkippedCount = 0;
-let isProcessingVote = false; // Status pengunci untuk mencegah double-tap
+let isProcessingVote = false;
 
 const emojiIconMap = {
   'Sangat Senang': '🤩',
@@ -27,8 +29,18 @@ const emojiIconMap = {
 };
 
 // ==========================================
-// HELPER FUNCTIONS (DATE & CLASS MATCHING)
+// HELPER FUNCTIONS FOR GOOGLE SHEETS & DATES
 // ==========================================
+function sendToGoogleSheets(payload) {
+  if (!GOOGLE_SCRIPT_URL) return;
+  fetch(GOOGLE_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).catch(err => console.error('Gagal kirim ke Google Sheets:', err));
+}
+
 function cleanDateStr(dStr) {
   if (!dStr) return '';
   const str = String(dStr).trim();
@@ -83,7 +95,6 @@ function isClassMatch(classA, classB) {
   return cleanA === cleanB;
 }
 
-// Fungsi pengunci seluruh tombol (Emoji & Tombol Tidak Hadir) saat jeda
 function setEmojiButtonsState(enabled) {
   const emojiButtons = document.querySelectorAll('.emoji-btn');
   const skipBtn = document.getElementById('btnSkipStudent');
@@ -110,44 +121,13 @@ function setEmojiButtonsState(enabled) {
 }
 
 // ==========================================
-// INITIALIZATION & LOCAL STORAGE
+// INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
-  loadDataFromLocalStorage();
   updateAuthUI();
   updateAllViews();
   syncDataFromGoogleSheets();
 });
-
-function loadDataFromLocalStorage() {
-  const savedStudents = localStorage.getItem('sd1tiga_students');
-  const savedResponses = localStorage.getItem('sd1tiga_responses');
-  const savedUsers = localStorage.getItem('sd1tiga_users');
-  const savedCurrentUser = localStorage.getItem('sd1tiga_current_user');
-
-  if (savedStudents) studentsData = JSON.parse(savedStudents);
-  if (savedResponses) surveyResponses = JSON.parse(savedResponses);
-  
-  if (savedUsers) {
-    usersData = JSON.parse(savedUsers);
-  } else {
-    usersData = [
-      { id: 'u0', nama: 'Administrator Sekolah', username: 'admin', password: 'admin123', role: 'admin', assignedClass: 'ALL' }
-    ];
-    saveUsersToLocalStorage();
-  }
-
-  if (savedCurrentUser) currentUser = JSON.parse(savedCurrentUser);
-}
-
-function saveDataToLocalStorage() {
-  localStorage.setItem('sd1tiga_students', JSON.stringify(studentsData));
-  localStorage.setItem('sd1tiga_responses', JSON.stringify(surveyResponses));
-}
-
-function saveUsersToLocalStorage() {
-  localStorage.setItem('sd1tiga_users', JSON.stringify(usersData));
-}
 
 // ==========================================
 // AUTHENTICATION SYSTEM
@@ -199,7 +179,6 @@ function handleLoginSubmit(e) {
 
   if (found) {
     currentUser = found;
-    localStorage.setItem('sd1tiga_current_user', JSON.stringify(currentUser));
     updateAuthUI();
     closeLoginModal();
     showToast(`Selamat datang, ${currentUser.nama}!`, '🔑');
@@ -216,7 +195,6 @@ function handleLoginSubmit(e) {
 
 function handleLogout() {
   currentUser = null;
-  localStorage.removeItem('sd1tiga_current_user');
   updateAuthUI();
   switchTab('siswa');
   showToast('Anda telah logout.', '👋');
@@ -287,17 +265,9 @@ function handleAddSingleStudent(e) {
   };
 
   studentsData.push({ id: newStudentPayload.id, nama: newStudentPayload.nama, kelas: newStudentPayload.kelas });
-  saveDataToLocalStorage();
   updateAllViews();
 
-  if (GOOGLE_SCRIPT_URL) {
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newStudentPayload)
-    }).catch(err => console.error('Gagal kirim siswa ke Sheets:', err));
-  }
+  sendToGoogleSheets(newStudentPayload);
 
   namaInput.value = '';
   showToast(`✅ Siswa "${nama}" berhasil ditambahkan!`, '👤');
@@ -334,18 +304,10 @@ function handleSaveEditStudent(e) {
     student.nama = newNama;
     student.kelas = newKelas;
 
-    saveDataToLocalStorage();
     updateAllViews();
     closeEditStudentModal();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'EDIT_STUDENT', id: id, nama: newNama, kelas: newKelas })
-      }).catch(err => console.error('Gagal edit siswa di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'EDIT_STUDENT', id: id, nama: newNama, kelas: newKelas });
 
     showToast(`✅ Data siswa "${newNama}" berhasil diperbarui!`, '✏️');
   }
@@ -362,17 +324,9 @@ function deleteSingleStudent(studentId) {
 
   if (confirm(`Apakah Anda yakin ingin menghapus data "${studentName}" dari daftar siswa?`)) {
     studentsData = studentsData.filter(s => s.id !== studentId);
-    saveDataToLocalStorage();
     updateAllViews();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'DELETE_STUDENT', id: studentId })
-      }).catch(err => console.error('Gagal hapus siswa di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'DELETE_STUDENT', id: studentId });
 
     showToast(`🗑️ Data ${studentName} berhasil dihapus.`, '⚠️');
   }
@@ -425,17 +379,9 @@ function handleCreateUser(e) {
   };
 
   usersData.push({ id: newUserPayload.id, nama, username, password, role, assignedClass });
-  saveUsersToLocalStorage();
   renderUsersTable();
 
-  if (GOOGLE_SCRIPT_URL) {
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newUserPayload)
-    }).catch(err => console.error('Gagal simpan user ke Sheets:', err));
-  }
+  sendToGoogleSheets(newUserPayload);
 
   e.target.reset();
   showToast('✅ Akun baru berhasil ditambahkan!');
@@ -489,30 +435,21 @@ function handleSaveEditUser(e) {
 
     if (currentUser.id === id) {
       currentUser = user;
-      localStorage.setItem('sd1tiga_current_user', JSON.stringify(currentUser));
       updateAuthUI();
     }
 
-    saveUsersToLocalStorage();
     renderUsersTable();
     closeEditUserModal();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'EDIT_USER',
-          id: id,
-          nama: newNama,
-          username: newUsername,
-          password: newPassword,
-          role: newRole,
-          assignedClass: newAssignedClass
-        })
-      }).catch(err => console.error('Gagal edit user di Sheets:', err));
-    }
+    sendToGoogleSheets({
+      action: 'EDIT_USER',
+      id: id,
+      nama: newNama,
+      username: newUsername,
+      password: newPassword,
+      role: newRole,
+      assignedClass: newAssignedClass
+    });
 
     showToast(`✅ Akun "${newNama}" berhasil diperbarui!`, '✏️');
   }
@@ -521,17 +458,9 @@ function handleSaveEditUser(e) {
 function deleteUser(id) {
   if (confirm('Hapus akun pengguna ini?')) {
     usersData = usersData.filter(u => u.id !== id);
-    saveUsersToLocalStorage();
     renderUsersTable();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'DELETE_USER', id: id })
-      }).catch(err => console.error('Gagal hapus user di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'DELETE_USER', id: id });
 
     showToast('Akun telah dihapus.');
   }
@@ -610,20 +539,9 @@ function handleExcelUpload(event) {
 
       if (newStudents.length > 0) {
         studentsData = newStudents;
-        saveDataToLocalStorage();
         updateAllViews();
 
-        if (GOOGLE_SCRIPT_URL) {
-          fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'ADD_BULK_STUDENTS',
-              students: newStudents
-            })
-          }).catch(err => console.error('Gagal sync Excel ke Google Sheets:', err));
-        }
+        sendToGoogleSheets({ action: 'ADD_BULK_STUDENTS', students: newStudents });
 
         showToast(`✅ Berhasil mengunggah ${newStudents.length} data siswa!`, '🎉');
       }
@@ -637,7 +555,6 @@ function handleExcelUpload(event) {
 function loadSampleData(notify = true) {
   studentsData = [];
   surveyResponses = [];
-  saveDataToLocalStorage();
   updateAllViews();
   if (notify) showToast('Data dibersihkan.');
 }
@@ -650,17 +567,9 @@ function clearAllData() {
   if (confirm('Hapus seluruh data siswa dan riwayat survei di web dan Google Sheets?')) {
     studentsData = [];
     surveyResponses = [];
-    saveDataToLocalStorage();
     updateAllViews();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'RESET_ALL_DATA' })
-      }).catch(err => console.error('Gagal reset data di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'RESET_ALL_DATA' });
 
     showToast('Seluruh data dibersihkan.');
   }
@@ -674,18 +583,10 @@ function deleteSingleResponse(respId) {
 
   if (confirm('Apakah Anda yakin ingin menghapus respon siswa ini?')) {
     surveyResponses = surveyResponses.filter(r => r.id !== respId);
-    saveDataToLocalStorage();
     renderDashboard();
     renderStudentTable();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'DELETE_RESPONSE', id: respId })
-      }).catch(err => console.error('Gagal hapus respon di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'DELETE_RESPONSE', id: respId });
 
     showToast('🗑️ Respon siswa berhasil dihapus.');
   }
@@ -719,21 +620,10 @@ function deleteAllResponsesForFilter() {
 
     surveyResponses = surveyResponses.filter(r => !idsToDelete.includes(r.id));
 
-    saveDataToLocalStorage();
     renderDashboard();
     renderStudentTable();
 
-    if (GOOGLE_SCRIPT_URL) {
-      fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'DELETE_BULK_RESPONSES',
-          ids: idsToDelete
-        })
-      }).catch(err => console.error('Gagal hapus respon terfilter di Sheets:', err));
-    }
+    sendToGoogleSheets({ action: 'DELETE_BULK_RESPONSES', ids: idsToDelete });
 
     showToast(`🗑️ Berhasil menghapus ${toDelete.length} respon terfilter.`, '⚠️');
   }
@@ -848,16 +738,7 @@ function submitStudentVote(score, emojiText) {
   surveyResponses.push(dataRespon);
   sessionVotedCount++;
 
-  saveDataToLocalStorage();
-
-  if (GOOGLE_SCRIPT_URL) {
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dataRespon)
-    }).catch(err => console.error('Error Google Sheets:', err));
-  }
+  sendToGoogleSheets(dataRespon);
 
   showToast(`Terima kasih, ${currentStudent.nama}! 😊`, '✨');
 
@@ -898,16 +779,7 @@ function skipStudent() {
   surveyResponses.push(dataRespon);
   sessionSkippedCount++;
 
-  saveDataToLocalStorage();
-
-  if (GOOGLE_SCRIPT_URL) {
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dataRespon)
-    }).catch(err => console.error('Error Google Sheets:', err));
-  }
+  sendToGoogleSheets(dataRespon);
 
   showToast(`Siswa ${currentStudent.nama} dicatat Tidak Hadir.`, '🚫');
 
@@ -948,7 +820,7 @@ function stopSiswaSession() {
 
 function resetToClassSelect() {
   document.getElementById('siswaVotingCard').classList.add('hidden');
-  document.getElementById('siswaFinishedCard').classList.add('hidden');
+  document.getElementById('siswaFinishedCard').classList.remove('hidden');
   document.getElementById('siswaClassSelectCard').classList.remove('hidden');
   isProcessingVote = false;
   setEmojiButtonsState(true);
@@ -1299,7 +1171,7 @@ function showToast(message, icon = '✨') {
 }
 
 // ==========================================
-// SMART MERGE SYNC (GOOGLE SHEETS)
+// SINKRONISASI LANGSUNG DARI GOOGLE SHEETS
 // ==========================================
 async function syncDataFromGoogleSheets() {
   if (!GOOGLE_SCRIPT_URL) return;
@@ -1308,50 +1180,28 @@ async function syncDataFromGoogleSheets() {
     const res = await fetch(GOOGLE_SCRIPT_URL);
     const cloudData = await res.json();
     
-    // 1. Smart Merge Respon
+    // 1. Ambil data siswa murni dari Google Sheets
+    if (Array.isArray(cloudData.students)) {
+      studentsData = cloudData.students;
+    }
+
+    // 2. Ambil data respon murni dari Google Sheets
     if (Array.isArray(cloudData.responses)) {
-      const cloudResponses = cloudData.responses.map(r => {
+      surveyResponses = cloudData.responses.map(r => {
         r.dateStr = cleanDateStr(r.dateStr);
         return r;
       });
-
-      const responseMap = new Map();
-
-      surveyResponses.forEach(r => {
-        const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
-        responseMap.set(key, r);
-      });
-
-      cloudResponses.forEach(r => {
-        const key = r.id || `${r.studentId}_${cleanDateStr(r.dateStr)}`;
-        responseMap.set(key, r);
-      });
-
-      surveyResponses = Array.from(responseMap.values());
     }
 
-    // 2. Smart Merge Data Siswa
-    if (Array.isArray(cloudData.students) && cloudData.students.length > 0) {
-      const studentMap = new Map();
-      studentsData.forEach(s => studentMap.set(s.id, s));
-      cloudData.students.forEach(s => studentMap.set(s.id, s));
-      studentsData = Array.from(studentMap.values());
-    }
-
-    // 3. Smart Merge Data User
+    // 3. Ambil data user dari Google Sheets
     if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
-      const userMap = new Map();
-      usersData.forEach(u => userMap.set(u.id, u));
-      cloudData.users.forEach(u => userMap.set(u.id, u));
-      usersData = Array.from(userMap.values());
+      usersData = cloudData.users;
     }
 
-    saveDataToLocalStorage();
-    saveUsersToLocalStorage();
     updateAllViews();
     if (currentUser && currentUser.role === 'admin') renderUsersTable();
 
   } catch (err) {
-    console.log('Mode Offline / Menggunakan LocalStorage');
+    console.error('Gagal sinkronisasi data dari Google Sheets:', err);
   }
 }
