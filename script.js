@@ -50,11 +50,9 @@ function loadUserSession() {
     const { user, loginTimestamp } = JSON.parse(savedSession);
     const now = Date.now();
 
-    // Periksa apakah sesi belum kadaluarsa (kurang dari 1 jam)
     if (now - loginTimestamp < SESSION_DURATION_MS) {
       currentUser = user;
     } else {
-      // Sesi habis / kedaluwarsa
       localStorage.removeItem('sd1tiga_user_session');
       currentUser = null;
       setTimeout(() => {
@@ -164,6 +162,17 @@ function setEmojiButtonsState(enabled) {
   }
 }
 
+// Cek Apakah Siswa Sudah Mengisi Survei/Absen Hari Ini
+function hasStudentVotedToday(student) {
+  const todayDateStr = getTodayDateStr();
+  return surveyResponses.some(r => {
+    const sameStudent = (r.studentId && String(r.studentId).trim() === String(student.id).trim()) ||
+                        (r.nama && student.nama && r.nama.trim().toLowerCase() === student.nama.trim().toLowerCase() && isClassMatch(r.kelas, student.kelas));
+    const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
+    return sameStudent && sameDate;
+  });
+}
+
 // ==========================================
 // INITIALIZATION
 // ==========================================
@@ -224,7 +233,7 @@ function handleLoginSubmit(e) {
 
   if (found) {
     currentUser = found;
-    saveUserSession(currentUser); // Simpan sesi 1 jam
+    saveUserSession(currentUser);
     updateAuthUI();
     closeLoginModal();
     showToast(`Selamat datang, ${currentUser.nama}!`, '🔑');
@@ -727,7 +736,21 @@ function startSiswaSession() {
   if (!selectedClass) return;
 
   activeClass = selectedClass;
-  activeClassStudents = studentsData.filter(s => isClassMatch(s.kelas, activeClass));
+  const allClassStudents = studentsData.filter(s => isClassMatch(s.kelas, activeClass));
+
+  // Filter hanya siswa yang BELUM mengisi survei hari ini
+  activeClassStudents = allClassStudents.filter(s => !hasStudentVotedToday(s));
+
+  if (allClassStudents.length > 0 && activeClassStudents.length === 0) {
+    showToast(`🎉 Seluruh siswa ${activeClass} sudah mengisi survei hari ini!`, '✅');
+    return;
+  }
+
+  if (activeClassStudents.length === 0) {
+    showToast(`⚠️ Belum ada data siswa di ${activeClass}.`, '⚠️');
+    return;
+  }
+
   currentStudentIndex = 0;
   sessionVotedCount = 0;
   sessionSkippedCount = 0;
@@ -760,8 +783,17 @@ function submitStudentVote(score, emojiText) {
   isProcessingVote = true;
   setEmojiButtonsState(false);
 
-  confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
   const currentStudent = activeClassStudents[currentStudentIndex];
+
+  // Validasi Ganda: Cegah jika ternyata sudah pernah mengisi hari ini
+  if (hasStudentVotedToday(currentStudent)) {
+    showToast(`⚠️ ${currentStudent.nama} sudah mengisi survei hari ini!`, '🔒');
+    isProcessingVote = false;
+    setEmojiButtonsState(true);
+    return;
+  }
+
+  confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 } });
   const todayDateStr = getTodayDateStr();
 
   const dataRespon = {
@@ -774,13 +806,6 @@ function submitStudentVote(score, emojiText) {
     dateStr: todayDateStr,
     timestamp: new Date().toLocaleString('id-ID')
   };
-
-  surveyResponses = surveyResponses.filter(r => {
-    const sameStudent = (r.studentId && String(r.studentId).trim() === String(currentStudent.id).trim()) ||
-                        (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
-    const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
-    return !(sameStudent && sameDate);
-  });
 
   surveyResponses.push(dataRespon);
   sessionVotedCount++;
@@ -803,6 +828,15 @@ function skipStudent() {
   setEmojiButtonsState(false);
 
   const currentStudent = activeClassStudents[currentStudentIndex];
+
+  // Validasi Ganda
+  if (hasStudentVotedToday(currentStudent)) {
+    showToast(`⚠️ ${currentStudent.nama} sudah dicatat hari ini!`, '🔒');
+    isProcessingVote = false;
+    setEmojiButtonsState(true);
+    return;
+  }
+
   const todayDateStr = getTodayDateStr();
 
   const dataRespon = {
@@ -815,13 +849,6 @@ function skipStudent() {
     dateStr: todayDateStr,
     timestamp: new Date().toLocaleString('id-ID')
   };
-
-  surveyResponses = surveyResponses.filter(r => {
-    const sameStudent = (r.studentId && String(r.studentId).trim() === String(currentStudent.id).trim()) ||
-                        (r.nama && currentStudent.nama && r.nama.trim().toLowerCase() === currentStudent.nama.trim().toLowerCase() && isClassMatch(r.kelas, currentStudent.kelas));
-    const sameDate = cleanDateStr(r.dateStr) === todayDateStr;
-    return !(sameStudent && sameDate);
-  });
 
   surveyResponses.push(dataRespon);
   sessionSkippedCount++;
@@ -895,13 +922,9 @@ function renderStudentTable() {
   }
 
   const isAdmin = currentUser && currentUser.role === 'admin';
-  const todayResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === todayStr);
 
   tbody.innerHTML = filtered.map((s, index) => {
-    const hasVotedToday = todayResponses.some(r => 
-      (r.studentId && String(r.studentId).trim() === String(s.id).trim()) ||
-      (r.nama && s.nama && r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && isClassMatch(r.kelas, s.kelas))
-    );
+    const hasVotedToday = hasStudentVotedToday(s);
     return `
       <tr class="hover:bg-sky-50/50">
         <td class="p-2.5 sm:p-3 font-bold">${index + 1}</td>
@@ -980,20 +1003,7 @@ function renderDashboard() {
   const totalResp = filteredResponses.length;
   document.getElementById('statTotalResponses').textContent = totalResp;
 
-  const targetDate = selectedDate === 'ALL' ? getTodayDateStr() : selectedDate;
-  const targetDateResponses = surveyResponses.filter(r => cleanDateStr(r.dateStr) === targetDate);
-
-  const pendingCount = filteredStudents.filter(s => {
-    const voted = targetDateResponses.some(r => {
-      const matchId = r.studentId && String(r.studentId).trim() === String(s.id).trim();
-      const matchNameClass = r.nama && s.nama && 
-                             r.nama.trim().toLowerCase() === s.nama.trim().toLowerCase() && 
-                             isClassMatch(r.kelas, s.kelas);
-      return matchId || matchNameClass;
-    });
-    return !voted;
-  }).length;
-
+  const pendingCount = filteredStudents.filter(s => !hasStudentVotedToday(s)).length;
   document.getElementById('statPendingStudents').textContent = pendingCount;
 
   const validResponses = filteredResponses.filter(r => r.score > 0);
