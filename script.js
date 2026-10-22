@@ -8,6 +8,9 @@ let usersData = [
 ];
 let currentUser = null; // null = Guest / Mode Siswa
 
+// DURASI SESI LOGIN (1 JAM = 3.600.000 ms)
+const SESSION_DURATION_MS = 60 * 60 * 1000; 
+
 // MASUKKAN URL GOOGLE APPS SCRIPT WEB APP ANDA DI SINI
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkXU4GVuIjgJW4U3QP6bfr7bz_d1L19Y1NvBRdvaww9N0JCWBJ0aWzuAYe3JtNg5UYVw/exec'; 
 
@@ -27,6 +30,47 @@ const emojiIconMap = {
   'Sedih': '😢',
   'Tidak Hadir': '🚫'
 };
+
+// ==========================================
+// SESSION MANAGEMENT (SESI LOGIN 1 JAM)
+// ==========================================
+function saveUserSession(user) {
+  const sessionPayload = {
+    user: user,
+    loginTimestamp: Date.now()
+  };
+  localStorage.setItem('sd1tiga_user_session', JSON.stringify(sessionPayload));
+}
+
+function loadUserSession() {
+  const savedSession = localStorage.getItem('sd1tiga_user_session');
+  if (!savedSession) return;
+
+  try {
+    const { user, loginTimestamp } = JSON.parse(savedSession);
+    const now = Date.now();
+
+    // Periksa apakah sesi belum kadaluarsa (kurang dari 1 jam)
+    if (now - loginTimestamp < SESSION_DURATION_MS) {
+      currentUser = user;
+    } else {
+      // Sesi habis / kedaluwarsa
+      localStorage.removeItem('sd1tiga_user_session');
+      currentUser = null;
+      setTimeout(() => {
+        showToast('⏱️ Sesi login telah berakhir. Silakan login kembali.', '🔒');
+      }, 500);
+    }
+  } catch (err) {
+    localStorage.removeItem('sd1tiga_user_session');
+    currentUser = null;
+  }
+}
+
+function clearUserSession() {
+  localStorage.removeItem('sd1tiga_user_session');
+  currentUser = null;
+}
 
 // ==========================================
 // HELPER FUNCTIONS FOR GOOGLE SHEETS & DATES
@@ -124,6 +168,7 @@ function setEmojiButtonsState(enabled) {
 // INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
+  loadUserSession();
   updateAuthUI();
   updateAllViews();
   syncDataFromGoogleSheets();
@@ -179,6 +224,7 @@ function handleLoginSubmit(e) {
 
   if (found) {
     currentUser = found;
+    saveUserSession(currentUser); // Simpan sesi 1 jam
     updateAuthUI();
     closeLoginModal();
     showToast(`Selamat datang, ${currentUser.nama}!`, '🔑');
@@ -194,7 +240,7 @@ function handleLoginSubmit(e) {
 }
 
 function handleLogout() {
-  currentUser = null;
+  clearUserSession();
   updateAuthUI();
   switchTab('siswa');
   showToast('Anda telah logout.', '👋');
@@ -435,6 +481,7 @@ function handleSaveEditUser(e) {
 
     if (currentUser.id === id) {
       currentUser = user;
+      saveUserSession(currentUser);
       updateAuthUI();
     }
 
